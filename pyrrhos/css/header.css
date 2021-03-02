@@ -1,0 +1,12 @@
+h1 {
+    color: navy;
+    margin-left: 25px;
+    text-align: center;
+}
+
+h2 {
+    color: rgb(134, 32, 32);
+    font-size: 20px;
+    text-align: center;
+    word-spacing: 10px;
+}
