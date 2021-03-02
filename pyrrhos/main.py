@@ -10,11 +10,7 @@ class Page:
         self.title = title
         Page.titles.append(title)
 
-        self.url = self.title.split()[:2]
-        if self.url[0] in ['The', 'A', 'An']:
-            self.url = self.url[1].lower()
-        else:
-            self.url = self.url[0].lower()
+        self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
         if self.url == 'political': self.url = 'politics'
         Page.urls.append(self.url)
@@ -31,13 +27,32 @@ class Page:
             if True in [clean_word in clean_parens(word2) for word2 in self.vocab]:
                 continue
 
-            for v in [clean_word, clean_word + 's', clean_word[:-2] + 'an', clean_word + 'ish', clean_word[-1] + 'ves']:
+            for v in [clean_word,
+                      clean_word + 's',
+                      clean_word[:-2] + 'an',
+                      clean_word + 'ish',
+                      clean_word[:-1] + 'ves',
+                      clean_word[:-1] + 'ven',
+                      clean_word[:-4] + 'ian',
+                      clean_word[:-1] + 'ish']:
                 for w in [v, v.lower()]:
-                    for x in [' ' + w + ' ', ' ' + w + ',', ' ' + w + '.', ' ' + w + '!', ' ' + w + ')', ' ' + w + "’", ' ' + w + '?']:
+                    for x in [' ' + w + ' ',
+                              ' ' + w + ',',
+                              ' ' + w + '.',
+                              ' ' + w + '!',
+                              ' ' + w + ')',
+                              ' ' + w + "’",
+                              ' ' + w + '?',
+                              ' ' + w + '/',
+                              '/' + w + ')',
+                              '/' + w + '/',
+                              '(' + w + ')' +
+                              '(' + w + '/',
+                              ' ' + w + '\n']:
                         self.main_text = self.main_text.replace(x, x[0] + f'<a href="{other_page.url + ".html"}#{word}">{v}</a>' + x[-1])
 
     def write(self):
-        with open('html/' + self.url + '.html', 'w') as f:
+        with open('html/' + self.url + '.html', 'w', encoding='UTF-8') as f:
 
             # Head
             f.write('<!doctype html>\n<html>\n<head>\n')
@@ -53,13 +68,20 @@ class Page:
             # Table of Contents
             if len(self.vocab) > 0:
                 f.write('<toc>\n<li><strong>CONTENTS</strong>\n</li>\n')
-                f.writelines([f'<li><blockquote>\n<a href="#{word}">{word}</a>\n</blockquote></li>\n' for word in self.vocab])
+                if self.main_text.count('<ul') >= 2:
+                    table_terms = [self.vocab[0]]
+                    for term in re.findall("</ul>(.*?)<ul>", self.main_text.replace('\n', '')):
+                        table_terms.append(re.search("<strong>(.*)</strong>", term).group(1))
+                else:
+                    table_terms = self.vocab
+                f.writelines([f'<li><blockquote>\n<a href="#{word}">{word}</a>\n</blockquote></li>\n' for word in table_terms])
                 f.write('</toc>\n')
 
             # Main text
             f.writelines(self.main_text)
 
-            f.write('</body>\n</html>')
+            # End
+            f.write('</body>\n</html>\n')
 
     def add_images(self, image_folder, img_class='character'):
         file_path = './images/' + image_folder
@@ -86,7 +108,15 @@ def clean_term(term):
 
 
 def clean_parens(term):
-    return re.sub(r"\([^()]*\)", "", term).rstrip(' ()')
+    return remove_articles(re.sub(r"\([^()]*\)", "", term).rstrip(' ()'))
+
+
+def remove_articles(term):
+    term = term.split()
+    if term[0] in ['The', 'A', 'An']:
+        return ' '.join(term[1:])
+    else:
+        return ' '.join(term[0:])
 
 
 def build_website():
@@ -95,7 +125,7 @@ def build_website():
                        'A Geographical Overview of Pyrrhos',
                        'Political Overview of Pyrrhos',
                        'The Races of Pyrrhos',
-                       'Religions',
+                       'Religion',
                        'Monsters',
                        'Cosmology']:
         pages.append(Page(page_title))
@@ -108,7 +138,7 @@ def build_website():
 
         header_feed = True
         for line in lines:
-            if header_feed and True in [t in line for t in ['<strong', '<ol', '<em', 'ul']]:
+            if header_feed and True in [t in line for t in ['<strong', '<ol', '<em', '<ul']]:
                 header_feed = False
             if '<strong>' in line:
                 for title in Page.titles:
@@ -144,9 +174,12 @@ def build_website():
     pages = pages + [world_map, players, npcs]
 
     for page1 in pages:
+        page1.main_text = page1.main_text.replace('e`', 'è')
+        page1.main_text = page1.main_text.replace('</ul>', '</ul><p><br /></p>')
         for page2 in pages:
             page1.cross_reference(page2)
         page1.write()
+
 
 def main():
     # download_source()
