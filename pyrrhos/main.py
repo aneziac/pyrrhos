@@ -19,14 +19,16 @@ class Page:
         self.header_text = ""
         self.main_text = ""
 
-    def maintenance(self):
-        self.vocab = sorted(self.vocab, key=len)[::-1]
+    def maintenance(self, external_links):
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
+        for word in external_links:
+            self.header_text = self.header_text.replace(word, word[0] + f'<a href={external_links[word]}>{word[1:-1]}</a>' + word[-1])
+            self.main_text = self.main_text.replace(word, word[0] + f'<a href={external_links[word]}>{word[1:-1]}</a>' + word[-1])
 
     def cross_reference(self, other_page):
         if self == other_page:
             return
-        for word in other_page.vocab:
+        for word in sorted(other_page.vocab, key=len)[::-1]:
             clean_word = clean_parens(word)
             term_map = {}
             for word2 in self.vocab:
@@ -72,7 +74,7 @@ class Page:
             f.write(f'<title>\n\tPyrrhos - {self.url.capitalize()}\n</title>\n')
 
             # Header
-            f.write('</head>\n<body>\n')
+            f.write('</head>\n<body>\n<a name="top"></a>\n')
             f.write('<h1>\n\tPyrrhos\n</h1>\n<h2>\n\t')
 
             f.writelines([f'<a href="{url + ".html"}">{url.upper()}</a> ' if self.url != url else f'{url.upper()} ' for url in Page.urls])
@@ -95,7 +97,10 @@ class Page:
             f.writelines(self.main_text)
 
             # End
-            f.write('</body>\n</html>\n')
+            f.write('<ftr>')
+            f.write('\n\t<p><a href="#top">Back to top</a></p>')
+            f.write('\n\t<p><a href="https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos">Source code</a></p>')
+            f.write('\n</ftr></body>\n</html>\n')
 
     def add_images(self, image_folder, img_class='character'):
         file_path = './images/' + image_folder
@@ -174,6 +179,30 @@ def build_website():
             else:
                 current_page.main_text += line
 
+    external_links = {
+        ' Hawaii,': 'https://en.wikipedia.org/wiki/Hawaii',
+        ' Eberron)': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
+        ' House Ghallanda ': 'https://eberron.fandom.com/wiki/House_Ghallanda',
+        '(Switzerland)': 'https://en.wikipedia.org/wiki/Switzerland',
+    }
+
+    for class_name in ['Barbarian',
+                       'Bard',
+                       'Cleric',
+                       'Druid',
+                       'Fighter',
+                       'Monk',
+                       'Paladin',
+                       'Ranger',
+                       'Rogue',
+                       'Sorcerer',
+                       'Warlock',
+                       'Wizard',
+                       'Artificer']:
+        for v in [class_name, class_name + 's', class_name.lower(), class_name.lower() + 's']:
+            for w in [' ' + v + ' ', ' ' + v + '.', ' ' + v + ',']:
+                external_links[w] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
+
     world_map = Page('Map')
     world_map.add_images('map', 'map')
 
@@ -186,7 +215,7 @@ def build_website():
     pages = pages + [world_map, players, npcs]
 
     for page in pages:
-        page.maintenance()
+        page.maintenance(external_links)
 
     for page1 in pages:
         for page2 in pages:

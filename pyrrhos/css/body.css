@@ -52,3 +52,12 @@ img.cover {
     margin-top: 30px;
     margin-bottom: 50px;
 }
+
+ftr {
+    display: block;
+    font-family: 'Verdana';
+    font-size: 11px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
