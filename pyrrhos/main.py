@@ -19,14 +19,22 @@ class Page:
         self.header_text = ""
         self.main_text = ""
 
+    def maintenance(self):
+        self.vocab = sorted(self.vocab, key=len)[::-1]
+        self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
+
     def cross_reference(self, other_page):
         if self == other_page:
             return
         for word in other_page.vocab:
             clean_word = clean_parens(word)
-            if True in [clean_word in clean_parens(word2) for word2 in self.vocab]:
-                continue
-
+            term_map = {}
+            for word2 in self.vocab:
+                clean_word2 = clean_parens(word2)
+                if clean_word in clean_word2:
+                    term_encoding = str(hash(clean_word2))
+                    term_map[clean_word2] = term_encoding
+                    self.main_text = self.main_text.replace(clean_word2, term_encoding)
             for v in [clean_word,
                       clean_word + 's',
                       clean_word[:-2] + 'an',
@@ -48,7 +56,12 @@ class Page:
                               '/' + w + '/',
                               '(' + w + '/',
                               ' ' + w + '\n']:
+
                         self.main_text = self.main_text.replace(x, x[0] + f'<a href="{other_page.url + ".html"}#{word}">{v}</a>' + x[-1])
+
+            for term in term_map:
+                self.main_text = self.main_text.replace(term_map[term], term)
+
 
     def write(self):
         with open('html/' + self.url + '.html', 'w', encoding='UTF-8') as f:
@@ -60,8 +73,10 @@ class Page:
 
             # Header
             f.write('</head>\n<body>\n')
-            f.write('<h1>\n\tPyrrhos\n</h1>\n')
-            f.writelines(['<h2>\n\t'] + [f'<a href="{url + ".html"}">{url.upper()}</a> ' if self.url != url else f'{url.upper()} ' for url in Page.urls] + ['\n</h2>\n'])
+            f.write('<h1>\n\tPyrrhos\n</h1>\n<h2>\n\t')
+
+            f.writelines([f'<a href="{url + ".html"}">{url.upper()}</a> ' if self.url != url else f'{url.upper()} ' for url in Page.urls])
+            f.write('\n</h2>\n')
             f.writelines(self.header_text)
 
             # Table of Contents
@@ -106,7 +121,7 @@ def clean_term(term):
     return term.replace(' -', '').replace('<u>', '').replace('</u>', '').rstrip()
 
 
-def clean_parens(term):
+def clean_parens(term): # add brackets
     return remove_articles(re.sub(r"\([^()]*\)", "", term).rstrip(' ()'))
 
 
@@ -137,6 +152,7 @@ def build_website():
 
         header_feed = True
         for line in lines:
+            line = line.replace('e`', 'è')
             if header_feed and True in [t in line for t in ['<strong', '<ol', '<em', '<ul']]:
                 header_feed = False
             if '<strong>' in line:
@@ -169,9 +185,10 @@ def build_website():
 
     pages = pages + [world_map, players, npcs]
 
+    for page in pages:
+        page.maintenance()
+
     for page1 in pages:
-        page1.main_text = page1.main_text.replace('e`', 'è')
-        page1.main_text = page1.main_text.replace('</ul>', '</ul><p><br /></p>')
         for page2 in pages:
             page1.cross_reference(page2)
         page1.write()
