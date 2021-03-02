@@ -46,7 +46,6 @@ class Page:
                               ' ' + w + '/',
                               '/' + w + ')',
                               '/' + w + '/',
-                              '(' + w + ')' +
                               '(' + w + '/',
                               ' ' + w + '\n']:
                         self.main_text = self.main_text.replace(x, x[0] + f'<a href="{other_page.url + ".html"}#{word}">{v}</a>' + x[-1])
@@ -159,17 +158,14 @@ def build_website():
             else:
                 current_page.main_text += line
 
-    world_map = Page('Map of the World')
+    world_map = Page('Map')
     world_map.add_images('map', 'map')
-    world_map.write()
 
-    players = Page('Players of Campaign')
+    players = Page('Players')
     players.add_images('players')
-    players.write()
 
-    npcs = Page('NPCs of the World')
+    npcs = Page('NPCs')
     npcs.add_images('npcs')
-    npcs.write()
 
     pages = pages + [world_map, players, npcs]
 
