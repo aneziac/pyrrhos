@@ -14,6 +14,8 @@ class Page:
         if self.url == 'political': self.url = 'politics'
         Page.urls.append(self.url)
         self.full_url = self.url + '.html'
+        self.tab = self.url.capitalize()
+        if self.url == 'npcs': self.tab = 'NPCs'
 
         self.vocab = []
         self.header_text = ""
@@ -26,8 +28,8 @@ class Page:
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
 
         for word in external_links:
-            self.header_text = self.add_links(self.header_text, Term(word), external_links[word])
-            self.main_text = self.add_links(self.main_text, Term(word), external_links[word])
+            self.header_text = self.add_links(self.header_text, Term(word), external_links[word], False)
+            self.main_text = self.add_links(self.main_text, Term(word), external_links[word], False)
 
     def cross_reference(self, other_page):
         if self == other_page:
@@ -51,14 +53,14 @@ class Page:
         src = HTML_String()
 
         # Head
-        src.write(f'<title>Pyrrhos - {self.url.capitalize()}</title>')
+        src.write(f'<title>Pyrrhos - {self.tab}</title>')
 
-        # Header
-        src.write('</head><body><a name="top"></a>')
+        # Header <div id="rectangle"></div>
+        src.write('</head><body><div id="rectangle"><a name="top"></a>')
         src.write('<h1>Pyrrhos</h1><h2>')
 
-        src.write_list([f'<a href="{url + ".html"}">{url.upper()}</a> ' if self.url != url else f'{url.upper()} ' for url in Page.urls])
-        src.write('</h2>')
+        src.write_list([f'<a href="{url + ".html"}">{url.capitalize()}</a> ' if self.url != url else f'{url.capitalize()} ' for url in Page.urls])
+        src.write('</h2></div><div id="main">')
         src.write(self.header_text)
 
         # Table of Contents
@@ -91,7 +93,7 @@ class Page:
                 with open(file_path + '/' + desc) as f:
                     self.main_text += f'<cap>{f.readlines()[0]}</cap>'
 
-    def add_links(self, string, substring, link):
+    def add_links(self, string, substring, link, internal=True):
         result = string
 
         for v in [substring.short,
@@ -117,8 +119,12 @@ class Page:
                         '(' + w + '/',
                         '(' + w + ' ',
                         '(' + w + ',',
+                        ' ' + w + '-',
                         ' ' + w + '\n']:
-                    result = result.replace(x, x[0] + f'<a href="{link}#{substring.long}">{w}</a>' + x[-1])
+                    if internal:
+                        result = result.replace(x, x[0] + f'<a href="{link}#{substring.long}">{w}</a>' + x[-1])
+                    else:
+                        result = result.replace(x, x[0] + f'<a href="{link}">{w}</a>' + x[-1])
 
         return result
 
@@ -136,7 +142,7 @@ class HTML_String:
         self.raw_string += ''.join(l)
 
     def finish(self):
-        self.write('<ftr>')
+        self.write('</div><ftr>')
         self.write('<p><a href="#top">Back to top</a></p>')
         self.write('<p><a href="https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos">Source code</a></p>')
         self.write('</ftr>')
@@ -203,6 +209,11 @@ class Website:
 
     def insert_external_links(self):
         external_links = {
+            'Greco': 'https://en.wikipedia.org/wiki/Greece',
+            'Mediterranean Sea': 'https://en.wikipedia.org/wiki/Mediterranean_Sea',
+            'Colonialism': 'https://en.wikipedia.org/wiki/Colonialism',
+            'Steampunk': 'https://en.wikipedia.org/wiki/Steampunk',
+            'Humanoid': 'https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type/humanoids',
             'Hawaii': 'https://en.wikipedia.org/wiki/Hawaii',
             'Eberron': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
             'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
@@ -225,6 +236,13 @@ class Website:
             'Artificer']:
 
             external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
+
+        for spell_name in [
+            'Guidance',
+            'Detect thoughts',
+            'Identify']:
+
+            external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + '-'.join(spell_name.lower().split())
 
         for page in self.pages:
             page.maintenance(external_links)
@@ -251,8 +269,12 @@ class Term:
 
 def remove_articles(term):
     split_term = term.split()
-    if split_term[0] in ['The', 'A', 'An']:
-        return ' '.join(split_term[1:])
+    try:
+        if split_term[0] in ['The', 'A', 'An']:
+            return ' '.join(split_term[1:])
+    except:
+        print(term, split_term)
+        quit()
     else:
         return term
 
@@ -288,6 +310,11 @@ def main():
     players = Page('Players', auto_images=True)
     npcs = Page('NPCs', auto_images=True)
     website.pages = website.pages + [world_map, players, npcs]
+
+    for term in website.pages[3].vocab:
+        website.pages[3].main_text = website.pages[3].main_text.replace(term.long + ' -', term.long + f' <a href="https://d-n-d5e.fandom.com/wiki/{"_".join(term.short.split(" "))}">[wiki]</a> -')
+    for term in website.pages[5].vocab:
+        website.pages[5].main_text = website.pages[5].main_text.replace(term.long + ' -', term.long + f' <a href="https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type/{"_".join(term.short.split(" "))}">[wiki]</a> -')
 
     website.build()
 

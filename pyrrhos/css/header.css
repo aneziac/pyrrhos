@@ -1,7 +1,17 @@
+#rectangle {
+    width: 1280px;
+    height: 115px;
+    background-color: rgb(207, 178, 81);
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
 h1 {
     color: navy;
     margin-left: 25px;
     text-align: center;
+    font-family: sans-serif;
 }
 
 h2 {
@@ -9,4 +19,10 @@ h2 {
     font-size: 20px;
     text-align: center;
     word-spacing: 10px;
+    font-family: sans-serif;
+}
+
+u {
+    display: block;
+    margin-top: 60px;
 }
