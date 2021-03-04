@@ -4,12 +4,10 @@ from bs4 import BeautifulSoup as bs
 
 
 class Page:
-    titles = []
     urls = []
 
     def __init__(self, title, auto_images=False, img_class='character'):
         self.title = title
-        Page.titles.append(title)
 
         self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
@@ -26,25 +24,24 @@ class Page:
 
     def maintenance(self, external_links):
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
+
         for word in external_links:
-            self.header_text = add_links(self.header_text, word, external_links[word])
-            self.main_text = add_links(self.main_text, word, external_links[word])
+            self.header_text = self.add_links(self.header_text, Term(word), external_links[word])
+            self.main_text = self.add_links(self.main_text, Term(word), external_links[word])
 
     def cross_reference(self, other_page):
         if self == other_page:
             return
 
         term_map = {}
-        for word in sorted(other_page.vocab, key=len)[::-1]:
-            clean_word = post_clean_term(word)
+        for word in sorted(other_page.vocab, key=lambda term: len(term.short), reverse=True):
             for word2 in self.vocab:
-                clean_word2 = post_clean_term(word2)
-                if clean_word in clean_word2:
-                    term_encoding = str(hash(clean_word2))
-                    term_map[clean_word2] = term_encoding
-                    self.main_text = self.main_text.replace(clean_word2, term_encoding)
+                if word.short in word2.short:
+                    term_encoding = str(hash(word2.short))
+                    term_map[word2.short] = term_encoding
+                    self.main_text = self.main_text.replace(word2.short, term_encoding)
 
-            self.main_text = add_links(self.main_text, word, other_page.full_url)
+            self.main_text = self.add_links(self.main_text, word, other_page.full_url)
 
         for term in term_map:
             self.main_text = self.main_text.replace(term_map[term], term)
@@ -70,10 +67,10 @@ class Page:
             if self.main_text.count('<ul') >= 2:
                 table_terms = [self.vocab[0]]
                 for term in re.findall("</ul>(.*?)<ul>", self.main_text.replace('\n', '')):
-                    table_terms.append(re.search("<strong>(.*)</strong>", term).group(1))
+                    table_terms.append(Term(re.search("<strong>(.*)</strong>", term).group(1)))
             else:
                 table_terms = self.vocab
-            src.write_list([f'<li><blockquote><a href="#{word}">{word}</a></blockquote></li>' for word in table_terms])
+            src.write_list([f'<li><blockquote><a href="#{word.long}">{word.long}</a></blockquote></li>' for word in table_terms])
             src.write('</toc>')
 
         # Main text
@@ -93,6 +90,37 @@ class Page:
             if desc in descriptions:
                 with open(file_path + '/' + desc) as f:
                     self.main_text += f'<cap>{f.readlines()[0]}</cap>'
+
+    def add_links(self, string, substring, link):
+        result = string
+
+        for v in [substring.short,
+                substring.short + 's',
+                substring.short + 'n',
+                substring.short[:-2] + 'an',
+                substring.short + 'ish',
+                substring.short[:-1] + 'ves',
+                substring.short[:-1] + 'ven',
+                substring.short[:-4] + 'ian',
+                substring.short[:-1] + 'ish']:
+            for w in [v, v.lower()]:
+                for x in [' ' + w + ' ',
+                        ' ' + w + ',',
+                        ' ' + w + '.',
+                        ' ' + w + '!',
+                        ' ' + w + ')',
+                        ' ' + w + "’",
+                        ' ' + w + '?',
+                        ' ' + w + '/',
+                        '/' + w + ')',
+                        '/' + w + '/',
+                        '(' + w + '/',
+                        '(' + w + ' ',
+                        '(' + w + ',',
+                        ' ' + w + '\n']:
+                    result = result.replace(x, x[0] + f'<a href="{link}#{substring.long}">{w}</a>' + x[-1])
+
+        return result
 
 
 class HTML_String:
@@ -135,21 +163,90 @@ class HTML_String:
         return self.resub_anchors(soup.prettify())
 
 
-def download_source():
-    import gdown
-    import pypandoc
+class Website:
+    def __init__(self, page_titles=[]):
+        self.pages, self.page_titles = [], page_titles
+        for page_title in self.page_titles:
+            self.pages.append(Page(page_title))
 
-    source = 'https://docs.google.com/document/export?format=docx&id=10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0'
-    gdown.download(source, 'pyrrhos.docx', quiet=True)
-    pypandoc.convert_file('pyrrhos.docx', 'html', outputfile="raw.html")
+    def read_source(self, source_file):
+        page_index = 0
+        with open(source_file, 'r') as f:
+            lines = f.readlines()
+            current_page = self.pages[page_index]
+
+            header_feed = True
+            for line in lines:
+                line = line.replace('e`', 'è')
+                if header_feed and True in [t in line for t in ['<strong', '<ol', '<em', '<ul']]:
+                    header_feed = False
+
+                if '<strong>' in line:
+                    for title in self.page_titles:
+                        if title in line and ' -' not in line:
+                            page_index += 1
+                            current_page = self.pages[page_index]
+                            header_feed = True
+
+                    if current_page.url != 'home':
+                        term = re.search("<strong>(.*)</strong>", line)
+                        if term is not None:
+                            vocab_word = Term(term.group(1))
+                            current_page.main_text += f'<a name="{vocab_word.long}"></a>'
+                            if vocab_word.long not in self.page_titles:
+                                current_page.vocab.append(vocab_word)
+
+                if header_feed:
+                    current_page.header_text += line
+                else:
+                    current_page.main_text += line
+
+    def insert_external_links(self):
+        external_links = {
+            'Hawaii': 'https://en.wikipedia.org/wiki/Hawaii',
+            'Eberron': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
+            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
+            'Switzerland': 'https://en.wikipedia.org/wiki/Switzerland'
+        }
+
+        for class_name in [
+            'Barbarian',
+            'Bard',
+            'Cleric',
+            'Druid',
+            'Fighter',
+            'Monk',
+            'Paladin',
+            'Ranger',
+            'Rogue',
+            'Sorcerer',
+            'Warlock',
+            'Wizard',
+            'Artificer']:
+
+            external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
+
+        for page in self.pages:
+            page.maintenance(external_links)
+
+    def build(self):
+        self.insert_external_links()
+        for page1 in self.pages:
+            for page2 in self.pages:
+                page1.cross_reference(page2)
+            page1.write()
 
 
-def pre_clean_term(term):
-    return term.replace(' -', '').replace('<u>', '').replace('</u>', '').rstrip()
+class Term:
+    def __init__(self, term):
+        self.long = self.pre_clean(term)
+        self.short = self.post_clean(self.long)
 
+    def pre_clean(self, term):
+        return term.replace(' -', '').replace('<u>', '').replace('</u>', '').rstrip()
 
-def post_clean_term(term): # add brackets
-    return remove_articles(re.sub(r"\([^()]*\)", "", term).rstrip(' ()'))
+    def post_clean(self, term): # add brackets
+        return remove_articles(re.sub(r"\([^()]*\)", '', term).rstrip(' ()'))
 
 
 def remove_articles(term):
@@ -160,120 +257,39 @@ def remove_articles(term):
         return term
 
 
-def add_links(string, substring, link):
-    result = string
-    clean_substring = post_clean_term(substring)
+def download_source():
+    import gdown
+    import pypandoc
 
-    for v in [clean_substring,
-              clean_substring + 's',
-              clean_substring + 'n',
-              clean_substring[:-2] + 'an',
-              clean_substring + 'ish',
-              clean_substring[:-1] + 'ves',
-              clean_substring[:-1] + 'ven',
-              clean_substring[:-4] + 'ian',
-              clean_substring[:-1] + 'ish']:
-        for w in [v, v.lower()]:
-            for x in [' ' + w + ' ',
-                      ' ' + w + ',',
-                      ' ' + w + '.',
-                      ' ' + w + '!',
-                      ' ' + w + ')',
-                      ' ' + w + "’",
-                      ' ' + w + '?',
-                      ' ' + w + '/',
-                      '/' + w + ')',
-                      '/' + w + '/',
-                      '(' + w + '/',
-                      '(' + w + ' ',
-                      '(' + w + ',',
-                      ' ' + w + '\n']:
-                result = result.replace(x, x[0] + f'<a href="{link}#{substring}">{w}</a>' + x[-1])
-
-    return result
-
-
-def build_website():
-    pages, page_index = [], 1
-    for page_title in ['Home Page',
-                       'A Geographical Overview of Pyrrhos',
-                       'Political Overview of Pyrrhos',
-                       'The Races of Pyrrhos',
-                       'Religion',
-                       'Monsters',
-                       'Cosmology']:
-        pages.append(Page(page_title))
-
-    pages[0].add_images('world', 'cover')
-
-    with open('raw.html', 'r') as f:
-        lines = f.readlines()
-        current_page = pages[0]
-
-        header_feed = True
-        for line in lines:
-            line = line.replace('e`', 'è')
-            if header_feed and True in [t in line for t in ['<strong', '<ol', '<em', '<ul']]:
-                header_feed = False
-            if '<strong>' in line:
-                for title in Page.titles:
-                    if title in line and ' -' not in line:
-                        current_page = pages[page_index]
-                        page_index += 1
-                        header_feed = True
-                if current_page.url != 'home':
-                    term = re.search("<strong>(.*)</strong>", line)
-                    if term is not None:
-                        term = pre_clean_term(term.group(1))
-                        current_page.main_text += f'<a name="{term}"></a>'
-                        if term not in Page.titles:
-                            current_page.vocab.append(term)
-
-            if header_feed:
-                current_page.header_text += line
-            else:
-                current_page.main_text += line
-
-    external_links = {
-        'Hawaii': 'https://en.wikipedia.org/wiki/Hawaii',
-        'Eberron': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
-        'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
-        'Switzerland': 'https://en.wikipedia.org/wiki/Switzerland'
-    }
-
-    for class_name in ['Barbarian',
-                       'Bard',
-                       'Cleric',
-                       'Druid',
-                       'Fighter',
-                       'Monk',
-                       'Paladin',
-                       'Ranger',
-                       'Rogue',
-                       'Sorcerer',
-                       'Warlock',
-                       'Wizard',
-                       'Artificer']:
-        external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
-
-    world_map = Page('Map', auto_images=True, img_class='map')
-    players = Page('Players', auto_images=True)
-    npcs = Page('NPCs', auto_images=True)
-
-    pages = pages + [world_map, players, npcs]
-
-    for page in pages:
-        page.maintenance(external_links)
-
-    for page1 in pages:
-        for page2 in pages:
-            page1.cross_reference(page2)
-        page1.write()
+    source = 'https://docs.google.com/document/export?format=docx&id=10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0'
+    gdown.download(source, 'pyrrhos.docx', quiet=True)
+    pypandoc.convert_file('pyrrhos.docx', 'html', outputfile="raw.html")
 
 
 def main():
     download_source()
-    build_website()
+
+    website = Website (
+        page_titles=[
+            'Home Page',
+            'A Geographical Overview of Pyrrhos',
+            'Political Overview of Pyrrhos',
+            'The Races of Pyrrhos',
+            'Religion',
+            'Monsters',
+            'Cosmology'
+        ]
+    )
+
+    website.pages[0].add_images('world', 'cover')
+    website.read_source('raw.html')
+
+    world_map = Page('Map', auto_images=True, img_class='map')
+    players = Page('Players', auto_images=True)
+    npcs = Page('NPCs', auto_images=True)
+    website.pages = website.pages + [world_map, players, npcs]
+
+    website.build()
 
 
 main()
