@@ -3,24 +3,31 @@ body {
 }
 
 p {
-    display: block;
-    margin-left: 80px;
-    margin-right: 80px;
     font-family: 'Trebuchet MS';
 }
 
 #main {
     margin-top: 150px;
     font-size: 20px;
+    margin-left: 80px;
+    margin-right: 80px;
 }
 
 toc {
-    list-style-type: none;
+    list-style-type: ul;
     font-family: 'Gill Sans';
-    font-size: 18px;
+    font-size: 16px;
     text-align: center;
     margin-top: 40px;
     margin-bottom: 60px;
+    display: table;
+    margin: auto;
+}
+
+toc.header {
+    margin-top: 50px;
+    margin-left: -150px;
+    font-size: 25px;
     display: block;
 }
 
@@ -70,5 +77,22 @@ ftr {
     margin-right: auto;
     text-align: center;
     margin-top: 65px;
+}
+
+ol {
     font-family: 'Trebuchet MS';
+}
+
+ul {
+    padding-left: 50px;
+}
+
+li {
+    text-indent: -20px;
+    margin: 20px 0;
+}
+
+li.toc {
+    margin: -10px;
+    text-align: left;
 }

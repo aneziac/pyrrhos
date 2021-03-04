@@ -65,14 +65,14 @@ class Page:
 
         # Table of Contents
         if len(self.vocab) > 0:
-            src.write('<toc><li><strong>CONTENTS</strong></li>')
+            src.write('<toc class="header"><strong>Contents</strong></toc><toc>')
             if self.main_text.count('<ul') >= 2:
                 table_terms = [self.vocab[0]]
                 for term in re.findall("</ul>(.*?)<ul>", self.main_text.replace('\n', '')):
                     table_terms.append(Term(re.search("<strong>(.*)</strong>", term).group(1)))
             else:
                 table_terms = self.vocab
-            src.write_list([f'<li><blockquote><a href="#{word.long}">{word.long}</a></blockquote></li>' for word in table_terms])
+            src.write_list([f'<li class="toc"><blockquote><a href="#{word.long}">{word.long}</a></blockquote></li>' for word in table_terms])
             src.write('</toc>')
 
         # Main text
