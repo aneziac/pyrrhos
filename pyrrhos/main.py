@@ -185,6 +185,8 @@ def add_links(string, substring, link):
                       '/' + w + ')',
                       '/' + w + '/',
                       '(' + w + '/',
+                      '(' + w + ' ',
+                      '(' + w + ',',
                       ' ' + w + '\n']:
                 result = result.replace(x, x[0] + f'<a href="{link}#{substring}">{w}</a>' + x[-1])
 
