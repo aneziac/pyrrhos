@@ -28,7 +28,7 @@ class Page:
 
         for term in self.vocab:
             term.link = f'{self.full_url}#{term.long}'
-            Website.vocab[term.short] = term.link
+            Website.vocab.append(term)
 
         for word in external_links:
             self.header_text = self.add_links(self.header_text, Term(word), external_links[word], False)
@@ -60,8 +60,8 @@ class Page:
 
         # Header
         src.write('</head><body><div id="rectangle"><a name="top"></a>')
-        src.write('<h1>Pyrrhos</h1><form id="search bar"><input type="text" placeholder="Search"></form>')
-        src.write('<script src="../js/test.js"></script><h2>')
+        src.write('<h1>Pyrrhos</h1><input id="searchbar" onkeyup="search()" type="text"  placeholder="Search">')
+        src.write('<script src="../js/search.js"></script><h2>')
 
         src.write_list(self.navigation_bar)
         src.write('</h2></div><div class="main">')
@@ -174,7 +174,7 @@ class HTML_String:
 
 
 class Website:
-    vocab = {}
+    vocab = []
 
     def __init__(self, page_titles=[]):
         self.pages, self.page_titles = [], page_titles
@@ -222,8 +222,7 @@ class Website:
             'Humanoid': 'https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type/humanoids',
             'Hawaii': 'https://en.wikipedia.org/wiki/Hawaii',
             'Eberron': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
-            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
-            'Switzerland': 'https://en.wikipedia.org/wiki/Switzerland'
+            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda'
         }
 
         for class_name in [
@@ -252,8 +251,17 @@ class Website:
 
         for page in self.pages:
             page.maintenance(external_links)
-        with open('data/vocab.json', 'w') as f:
-            json.dump(Website.vocab, f)
+
+        if False:
+            print("[", end='')
+            for i, term in enumerate(Website.vocab):
+                print("'", end='')
+                print(term.__dict__, end='')
+                if i < len(Website.vocab) - 1:
+                    print("',")
+                else:
+                    print("'")
+            print("]")
 
     def navigation(self):
         for page1 in self.pages:
