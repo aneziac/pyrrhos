@@ -61,7 +61,7 @@ class Page:
         # Header
         src.write('</head><body><div id="rectangle"><a name="top"></a>')
         src.write('<h1>Pyrrhos</h1><input id="searchbar" onkeyup="search()" type="text"  placeholder="Search">')
-        src.write('<script src="../js/search.js"></script><h2>')
+        src.write('<script src="../js/search_gen.js"></script><h2>')
 
         src.write_list(self.navigation_bar)
         src.write('</h2></div><div class="main">')
@@ -104,6 +104,7 @@ class Page:
                 substring.short + 's',
                 substring.short + 'n',
                 substring.short[:-2] + 'an',
+                substring.short[:-2] + 'ans',
                 substring.short + 'ish',
                 substring.short[:-1] + 'ves',
                 substring.short[:-1] + 'ven',
@@ -203,7 +204,7 @@ class Website:
                     if current_page.url != 'home':
                         term = re.search("<strong>(.*)</strong>", line)
                         if term is not None:
-                            vocab_word = Term(term.group(1))
+                            vocab_word = Term(term.group(1).replace('è', 'e'))
                             current_page.main_text += f'<a name="{vocab_word.long}"></a>'
                             if vocab_word.long not in self.page_titles:
                                 current_page.vocab.append(vocab_word)
@@ -252,16 +253,19 @@ class Website:
         for page in self.pages:
             page.maintenance(external_links)
 
-        if False:
-            print("[", end='')
+    def write_js(self):
+        with open('js/search_gen.js', 'w') as f:
+            with open('js/search_src.js', 'r') as g:
+                f.writelines(g.readlines())
+            f.write("\n\nvar data = [\n\t")
             for i, term in enumerate(Website.vocab):
-                print("'", end='')
-                print(term.__dict__, end='')
+                f.write("'")
+                f.write(json.dumps(term.__dict__))
                 if i < len(Website.vocab) - 1:
-                    print("',")
+                    f.write("',\n\t")
                 else:
-                    print("'")
-            print("]")
+                    f.write("'\n")
+            f.write("]\n")
 
     def navigation(self):
         for page1 in self.pages:
@@ -273,6 +277,7 @@ class Website:
 
     def build(self):
         self.insert_external_links()
+        self.write_js()
         self.navigation()
         for page1 in self.pages:
             for page2 in self.pages:
@@ -294,12 +299,8 @@ class Term:
 
 def remove_articles(term):
     split_term = term.split()
-    try:
-        if split_term[0] in ['The', 'A', 'An']:
-            return ' '.join(split_term[1:])
-    except:
-        print(term, split_term)
-        quit()
+    if split_term[0] in ['The', 'A', 'An']:
+        return ' '.join(split_term[1:])
     else:
         return term
 
