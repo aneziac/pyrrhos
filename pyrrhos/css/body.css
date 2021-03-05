@@ -6,6 +6,13 @@ p {
     font-family: 'Trebuchet MS';
 }
 
+.main {
+    margin-top: 150px;
+    font-size: 20px;
+    margin-left: 80px;
+    margin-right: 80px;
+}
+
 strong {
     margin-top: 30px;
     display: inline-block;
@@ -109,14 +116,13 @@ p {
 
 .main li {
     text-indent: -20px;
-    margin: 20px 0;
+    margin: -15px 0;
 }
 
 .main li.toc {
     margin: -10px;
     text-align: left;
 }
-
 
 ftr {
     display: block;
