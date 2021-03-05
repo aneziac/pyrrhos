@@ -1,22 +1,21 @@
 import re
 import os
 from bs4 import BeautifulSoup as bs
+import json
 
 
 class Page:
-    urls = []
-
     def __init__(self, title, auto_images=False, img_class='character'):
         self.title = title
 
         self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
         if self.url == 'political': self.url = 'politics'
-        Page.urls.append(self.url)
         self.full_url = self.url + '.html'
         self.tab = self.url.capitalize()
         if self.url == 'npcs': self.tab = 'NPCs'
 
+        self.navigation_bar = []
         self.vocab = []
         self.header_text = ""
         self.main_text = ""
@@ -26,6 +25,10 @@ class Page:
 
     def maintenance(self, external_links):
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
+
+        for term in self.vocab:
+            term.link = f'{self.full_url}#{term.long}'
+            Website.vocab[term.short] = term.link
 
         for word in external_links:
             self.header_text = self.add_links(self.header_text, Term(word), external_links[word], False)
@@ -55,12 +58,13 @@ class Page:
         # Head
         src.write(f'<title>Pyrrhos - {self.tab}</title>')
 
-        # Header <div id="rectangle"></div>
+        # Header
         src.write('</head><body><div id="rectangle"><a name="top"></a>')
-        src.write('<h1>Pyrrhos</h1><h2>')
+        src.write('<h1>Pyrrhos</h1><form id="search bar"><input type="text" placeholder="Search"></form>')
+        src.write('<script src="../js/test.js"></script><h2>')
 
-        src.write_list([f'<a href="{url + ".html"}">{url.capitalize()}</a> ' if self.url != url else f'{url.capitalize()} ' for url in Page.urls])
-        src.write('</h2></div><div id="main">')
+        src.write_list(self.navigation_bar)
+        src.write('</h2></div><div class="main">')
         src.write(self.header_text)
 
         # Table of Contents
@@ -170,6 +174,8 @@ class HTML_String:
 
 
 class Website:
+    vocab = {}
+
     def __init__(self, page_titles=[]):
         self.pages, self.page_titles = [], page_titles
         for page_title in self.page_titles:
@@ -238,7 +244,7 @@ class Website:
             external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
 
         for spell_name in [
-            'Guidance',
+            # 'Guidance',
             'Detect thoughts',
             'Identify']:
 
@@ -246,9 +252,20 @@ class Website:
 
         for page in self.pages:
             page.maintenance(external_links)
+        with open('data/vocab.json', 'w') as f:
+            json.dump(Website.vocab, f)
+
+    def navigation(self):
+        for page1 in self.pages:
+            for page2 in self.pages:
+                if page1 == page2:
+                    page1.navigation_bar.append(page1.tab + ' ')
+                else:
+                    page1.navigation_bar.append(f'<a href="{page2.url + ".html"}">{page2.tab}</a> ')
 
     def build(self):
         self.insert_external_links()
+        self.navigation()
         for page1 in self.pages:
             for page2 in self.pages:
                 page1.cross_reference(page2)

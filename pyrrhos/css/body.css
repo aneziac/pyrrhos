@@ -2,18 +2,27 @@ body {
     background-color: lightblue;
 }
 
-p {
-    font-family: 'Trebuchet MS';
-}
-
-#main {
+.main {
     margin-top: 150px;
     font-size: 20px;
     margin-left: 80px;
     margin-right: 80px;
 }
 
-toc {
+.main p {
+    font-family: 'Trebuchet MS';
+}
+
+.main a {
+    text-decoration: none;
+}
+
+.main a:hover {
+    text-decoration: underline;
+    color: red;
+}
+
+.main toc {
     list-style-type: ul;
     font-family: 'Gill Sans';
     font-size: 16px;
@@ -24,14 +33,14 @@ toc {
     margin: auto;
 }
 
-toc.header {
+.main toc.header {
     margin-top: 50px;
     margin-left: -150px;
     font-size: 25px;
     display: block;
 }
 
-cap {
+.main cap {
     font-size: 17px;
     font-family: 'Verdana';
     text-align: center;
@@ -42,7 +51,7 @@ cap {
     margin-right: 100px;
 }
 
-img.character {
+.main img.character {
     display: block;
     margin-left: auto;
     margin-right: auto;
@@ -52,7 +61,7 @@ img.character {
     margin-bottom: 50px;
 }
 
-img.map {
+.main img.map {
     display: block;
     margin-left: auto;
     margin-right: auto;
@@ -60,7 +69,7 @@ img.map {
     margin-bottom: 50px;
 }
 
-img.cover {
+.main img.cover {
     display: block;
     margin-left: auto;
     margin-right: auto;
@@ -70,6 +79,25 @@ img.cover {
     margin-bottom: 50px;
 }
 
+.main ol {
+    font-family: 'Trebuchet MS';
+}
+
+.main ul {
+    padding-left: 50px;
+}
+
+.main li {
+    text-indent: -20px;
+    margin: 20px 0;
+}
+
+.main li.toc {
+    margin: -10px;
+    text-align: left;
+}
+
+
 ftr {
     display: block;
     font-size: 14px;
@@ -77,22 +105,4 @@ ftr {
     margin-right: auto;
     text-align: center;
     margin-top: 65px;
-}
-
-ol {
-    font-family: 'Trebuchet MS';
-}
-
-ul {
-    padding-left: 50px;
-}
-
-li {
-    text-indent: -20px;
-    margin: 20px 0;
-}
-
-li.toc {
-    margin: -10px;
-    text-align: left;
 }
