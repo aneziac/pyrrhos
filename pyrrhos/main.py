@@ -1,22 +1,21 @@
 import re
 import os
 from bs4 import BeautifulSoup as bs
+import json
 
 
 class Page:
-    urls = []
-
     def __init__(self, title, auto_images=False, img_class='character'):
         self.title = title
 
         self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
         if self.url == 'political': self.url = 'politics'
-        Page.urls.append(self.url)
         self.full_url = self.url + '.html'
         self.tab = self.url.capitalize()
         if self.url == 'npcs': self.tab = 'NPCs'
 
+        self.navigation_bar = []
         self.vocab = []
         self.header_text = ""
         self.main_text = ""
@@ -26,6 +25,10 @@ class Page:
 
     def maintenance(self, external_links):
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
+
+        for term in self.vocab:
+            term.link = f'{self.full_url}#{term.long}'
+            Website.vocab.append(term)
 
         for word in external_links:
             self.header_text = self.add_links(self.header_text, Term(word), external_links[word], False)
@@ -55,12 +58,13 @@ class Page:
         # Head
         src.write(f'<title>Pyrrhos - {self.tab}</title>')
 
-        # Header <div id="rectangle"></div>
+        # Header
         src.write('</head><body><div id="rectangle"><a name="top"></a>')
-        src.write('<h1>Pyrrhos</h1><h2>')
+        src.write('<h1>Pyrrhos</h1><input id="searchbar" onkeyup="search()" type="text"  placeholder="Search">')
+        src.write('<script src="../js/search_gen.js"></script><h2>')
 
-        src.write_list([f'<a href="{url + ".html"}">{url.capitalize()}</a> ' if self.url != url else f'{url.capitalize()} ' for url in Page.urls])
-        src.write('</h2></div><div id="main">')
+        src.write_list(self.navigation_bar)
+        src.write('</h2></div><div class="main">')
         src.write(self.header_text)
 
         # Table of Contents
@@ -100,6 +104,7 @@ class Page:
                 substring.short + 's',
                 substring.short + 'n',
                 substring.short[:-2] + 'an',
+                substring.short[:-2] + 'ans',
                 substring.short + 'ish',
                 substring.short[:-1] + 'ves',
                 substring.short[:-1] + 'ven',
@@ -170,6 +175,8 @@ class HTML_String:
 
 
 class Website:
+    vocab = []
+
     def __init__(self, page_titles=[]):
         self.pages, self.page_titles = [], page_titles
         for page_title in self.page_titles:
@@ -197,7 +204,7 @@ class Website:
                     if current_page.url != 'home':
                         term = re.search("<strong>(.*)</strong>", line)
                         if term is not None:
-                            vocab_word = Term(term.group(1))
+                            vocab_word = Term(term.group(1).replace('è', 'e'))
                             current_page.main_text += f'<a name="{vocab_word.long}"></a>'
                             if vocab_word.long not in self.page_titles:
                                 current_page.vocab.append(vocab_word)
@@ -216,8 +223,7 @@ class Website:
             'Humanoid': 'https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type/humanoids',
             'Hawaii': 'https://en.wikipedia.org/wiki/Hawaii',
             'Eberron': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
-            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
-            'Switzerland': 'https://en.wikipedia.org/wiki/Switzerland'
+            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda'
         }
 
         for class_name in [
@@ -238,7 +244,7 @@ class Website:
             external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
 
         for spell_name in [
-            'Guidance',
+            # 'Guidance',
             'Detect thoughts',
             'Identify']:
 
@@ -247,8 +253,32 @@ class Website:
         for page in self.pages:
             page.maintenance(external_links)
 
+    def write_js(self):
+        with open('js/search_gen.js', 'w') as f:
+            with open('js/search_src.js', 'r') as g:
+                f.writelines(g.readlines())
+            f.write("\n\nvar data = [\n\t")
+            for i, term in enumerate(Website.vocab):
+                f.write("'")
+                f.write(json.dumps(term.__dict__))
+                if i < len(Website.vocab) - 1:
+                    f.write("',\n\t")
+                else:
+                    f.write("'\n")
+            f.write("]\n")
+
+    def navigation(self):
+        for page1 in self.pages:
+            for page2 in self.pages:
+                if page1 == page2:
+                    page1.navigation_bar.append(page1.tab + ' ')
+                else:
+                    page1.navigation_bar.append(f'<a href="{page2.url + ".html"}">{page2.tab}</a> ')
+
     def build(self):
         self.insert_external_links()
+        self.write_js()
+        self.navigation()
         for page1 in self.pages:
             for page2 in self.pages:
                 page1.cross_reference(page2)
@@ -269,12 +299,8 @@ class Term:
 
 def remove_articles(term):
     split_term = term.split()
-    try:
-        if split_term[0] in ['The', 'A', 'An']:
-            return ' '.join(split_term[1:])
-    except:
-        print(term, split_term)
-        quit()
+    if split_term[0] in ['The', 'A', 'An']:
+        return ' '.join(split_term[1:])
     else:
         return term
 
