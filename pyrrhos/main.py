@@ -11,6 +11,7 @@ class Page:
         self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
         if self.url == 'political': self.url = 'politics'
+        if self.url == 'wanderer\'s': self.url = 'items'
         self.full_url = self.url + '.html'
         self.tab = self.url.capitalize()
         if self.url == 'npcs': self.tab = 'NPCs'
@@ -70,7 +71,7 @@ class Page:
         # Table of Contents
         if len(self.vocab) > 0:
             src.write('<toc class="header"><strong>Contents</strong></toc><toc>')
-            if self.main_text.count('<ul') >= 2:
+            if self.url == 'religion': # self.main_text.count('<ul') >= 2:
                 table_terms = [self.vocab[0]]
                 for term in re.findall("</ul>(.*?)<ul>", self.main_text.replace('\n', '')):
                     table_terms.append(Term(re.search("<strong>(.*)</strong>", term).group(1)))
@@ -125,6 +126,7 @@ class Page:
                         '(' + w + ' ',
                         '(' + w + ',',
                         ' ' + w + '-',
+                        '>' + w + '<',
                         ' ' + w + '\n']:
                     if internal:
                         result = result.replace(x, x[0] + f'<a href="{link}#{substring.long}">{w}</a>' + x[-1])
@@ -152,41 +154,45 @@ class HTML_String:
         self.write('<p><a href="https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos">Source code</a></p>')
         self.write('</ftr>')
         self.write('</body></html>')
-        self.sub_anchors()
+        self.sub_tags()
 
     # By default, prettify starts a newline for anchors, which messes up all links
     # To solve, links are substituted for hashes, then prettify is executed, then the hashes are substituted back into links
     # Somehow the > character after the link is getting converted to '&gt;'
     # To do: investigate this issue
 
-    def sub_anchors(self):
+    def sub_tags(self):
         self.raw_string = self.raw_string.replace('<a', str(hash('<a')))
         self.raw_string = self.raw_string.replace('</a>', str(hash('</a>')))
+        self.raw_string = self.raw_string.replace('<em', str(hash('<em')))
+        self.raw_string = self.raw_string.replace('</em>', str(hash('</em>')))
 
-    def resub_anchors(self, string):
+    def resub_tags(self, string):
         string = string.replace(str(hash('<a')), '<a')
         string = string.replace(str(hash('</a>')), '</a>')
+        string = string.replace(str(hash('<em')), '<em')
+        string = string.replace(str(hash('</em>')), '</em>')
         string = string.replace('&gt;', '>')  # what is causing this?
+        string = string.replace('&lt;', '<')  # what is causing this?
         return string
 
     def prettify(self):
         soup = bs(self.raw_string, features="html.parser")
-        return self.resub_anchors(soup.prettify())
+        return self.resub_tags(soup.prettify())
 
 
 class Website:
     vocab = []
 
     def __init__(self, page_titles=[]):
-        self.pages, self.page_titles = [], page_titles
+        self.pages, self.page_titles, self.page_index = [], page_titles, 0
         for page_title in self.page_titles:
             self.pages.append(Page(page_title))
 
     def read_source(self, source_file):
-        page_index = 0
         with open(source_file, 'r') as f:
             lines = f.readlines()
-            current_page = self.pages[page_index]
+            current_page = self.pages[self.page_index]
 
             header_feed = True
             for line in lines:
@@ -197,8 +203,8 @@ class Website:
                 if '<strong>' in line:
                     for title in self.page_titles:
                         if title in line and ' -' not in line:
-                            page_index += 1
-                            current_page = self.pages[page_index]
+                            self.page_index += 1
+                            current_page = self.pages[self.page_index]
                             header_feed = True
 
                     if current_page.url != 'home':
@@ -223,7 +229,10 @@ class Website:
             'Humanoid': 'https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type/humanoids',
             'Hawaii': 'https://en.wikipedia.org/wiki/Hawaii',
             'Eberron': 'https://eberron.fandom.com/wiki/Eberron_Wiki',
-            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda'
+            'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
+            'Eldeen Reaches': 'https://eberron.fandom.com/wiki/Eldeen_Reaches',
+            'House Cannith': 'https://eberron.fandom.com/wiki/House_Cannith',
+            'House Jorasco': 'https://eberron.fandom.com/wiki/House_Jorasco'
         }
 
         for class_name in [
@@ -246,7 +255,34 @@ class Website:
         for spell_name in [
             # 'Guidance',
             'Detect thoughts',
-            'Identify']:
+            'Identify',
+            'True Resurrection',
+            'Power Word Heal',
+            'Regeneration',
+            'Find Familiar',
+            'Flock of Familiars',
+            'shape water',
+            'druidcraft',
+            'prestidigitation',
+            'wall of force',
+            'inflict wounds',
+            'speak with dead',
+            'animate dead',
+            'blight',
+            'wristpocket',
+            'dispel magic',
+            'mental prison',
+            'disintegrate',
+            'greater restoration',
+            'wish',
+            'identify',
+            'zephyr strike',
+            'dispel magic',
+            'locate object',
+            'locate creature',
+            'remove curse',
+            'command'
+            ]:
 
             external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + '-'.join(spell_name.lower().split())
 
@@ -257,7 +293,7 @@ class Website:
         with open('js/search_gen.js', 'w') as f:
             with open('js/search_src.js', 'r') as g:
                 f.writelines(g.readlines())
-            f.write("\n\nvar data = [\n\t")
+            f.write("\nvar data = [\n\t")
             for i, term in enumerate(Website.vocab):
                 f.write("'")
                 f.write(json.dumps(term.__dict__))
@@ -309,9 +345,13 @@ def download_source():
     import gdown
     import pypandoc
 
-    source = 'https://docs.google.com/document/export?format=docx&id=10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0'
-    gdown.download(source, 'pyrrhos.docx', quiet=True)
-    pypandoc.convert_file('pyrrhos.docx', 'html', outputfile="raw.html")
+    def doc_to_html(doc_id, name):
+        source = 'https://docs.google.com/document/export?format=docx&id=' + doc_id
+        gdown.download(source, name + '.docx', quiet=True)
+        pypandoc.convert_file(name + '.docx', 'html', outputfile=name + '.html')
+
+    doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
+    # doc_to_html('1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec', 'wanderer')
 
 
 def main():
@@ -325,12 +365,14 @@ def main():
             'The Races of Pyrrhos',
             'Religion',
             'Monsters',
-            'Cosmology'
+            'Cosmology',
+            'The Wanderer\'s Wares'
         ]
     )
 
     website.pages[0].add_images('world', 'cover')
-    website.read_source('raw.html')
+    website.read_source('pyrrhos.html')
+    website.read_source('wanderer.html')
 
     world_map = Page('Map', auto_images=True, img_class='map')
     players = Page('Players', auto_images=True)

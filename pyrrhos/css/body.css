@@ -2,11 +2,31 @@ body {
     background-color: lightblue;
 }
 
-.main {
-    margin-top: 150px;
-    font-size: 20px;
-    margin-left: 80px;
-    margin-right: 80px;
+p {
+    font-family: 'Trebuchet MS';
+}
+
+strong {
+    margin-top: 30px;
+    display: inline-block;
+}
+
+em {
+    display: inline;
+}
+
+u {
+    display: block;
+    margin-top:-30px;
+}
+
+.main a {
+    text-decoration: none;
+}
+
+.main a:hover {
+    text-decoration: underline;
+    color: red;
 }
 
 p {
