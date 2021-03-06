@@ -25,7 +25,7 @@ class Page:
         if auto_images:
             self.add_images(self.title.lower(), img_class=img_class)
 
-    def maintenance(self, external_links):
+    def maintenance(self):
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
         self.main_text = self.main_text.replace('<em>', '@')
         self.main_text = self.main_text.replace('</em>', '$')
@@ -33,12 +33,6 @@ class Page:
         for term in self.vocab:
             term.link = f'{self.full_url}#{term.long}'
             Website.vocab.append(term)
-
-        for word in external_links:
-            term = Term(word)
-            term.link = external_links[word]
-            self.add_links(term)
-            self.add_links(term)
 
     def cross_reference(self, other_page):
         if self == other_page:
@@ -157,7 +151,7 @@ class Page:
                     '(' + w + ',',
                     ' ' + w + '-',
                     '@' + w + '$',
-                    ' ' + w + '\n'
+                    ' ' + w + '\n',
                 ]:
 
                     replacement = x[0] + f'<a href="{term.link}">{w}</a>' + x[-1]
@@ -243,7 +237,7 @@ class Website:
                     if current_page.url != 'home':
                         term = re.search("<strong>(.*)</strong>", line)
                         if term is not None:
-                            vocab_word = Term(term.group(1).replace('è', 'e'))
+                            vocab_word = Term(term.group(1), (True if current_page.url == 'monsters' else False))
                             current_page.main_text += f'<a name="{vocab_word.long}"></a>'
                             if vocab_word.long not in self.page_titles:
                                 current_page.vocab.append(vocab_word)
@@ -265,7 +259,13 @@ class Website:
             'House Ghallanda': 'https://eberron.fandom.com/wiki/House_Ghallanda',
             'Eldeen Reaches': 'https://eberron.fandom.com/wiki/Eldeen_Reaches',
             'House Cannith': 'https://eberron.fandom.com/wiki/House_Cannith',
-            'House Jorasco': 'https://eberron.fandom.com/wiki/House_Jorasco'
+            'House Jorasco': 'https://eberron.fandom.com/wiki/House_Jorasco',
+            'Roll20': 'https://app.roll20.net/campaigns/details/8231914/pyrrhos-campaign',
+            'Spell List': 'http://dnd5e.wikidot.com/spells',
+            'Quick Reference': 'https://orbitalbliss.github.io/dnd5e-quickref/quickref.html',
+            'Main Pyrrhos Doc': 'https://docs.google.com/document/d/1ytATWxoHUMBGNWV_XeqcI-OS9cWWSE_pKVszt2ZTQuE/edit',
+            'Wanderer\'s Wares Doc': 'https://docs.google.com/document/d/1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec/edit',
+            'List of Beasts': 'https://dnd-wiki.org/wiki/5e_Beast_List'
         }
 
         for class_name in [
@@ -318,7 +318,11 @@ class Website:
             external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + spell
 
         for page in self.pages:
-            page.maintenance(external_links)
+            page.maintenance()
+            for word in external_links:
+                term = Term(word)
+                term.link = external_links[word]
+                page.add_links(term)
 
     def write_js(self):
         with open('js/search_gen.js', 'w') as f:
@@ -353,15 +357,16 @@ class Website:
 
 
 class Term:
-    def __init__(self, term):
+    def __init__(self, term, remove_s=False):
+        term = term.replace('è', 'e')
         self.long = self.get_long(term)
-        self.short = self.get_short(self.long)
+        self.short = self.get_short(self.long, remove_s)
 
     def get_long(self, term):
         return term.replace(' -', '').replace('<u>', '').replace('</u>', '').rstrip()
 
-    def get_short(self, term):
-        if term[-1] == 's': term = term[:-1]
+    def get_short(self, term, remove_s):
+        if remove_s and term[-1] == 's': term = term[:-1]
         return remove_articles(remove_parens(term))
 
 
@@ -386,7 +391,7 @@ def download_source():
         gdown.download(source, name + '.docx', quiet=True)
         pypandoc.convert_file(name + '.docx', 'html', outputfile=name + '.html')
 
-    doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
+    # doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
     # doc_to_html('1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec', 'wanderer')
 
 
@@ -414,7 +419,13 @@ def main():
     world_map = Page('Map', auto_images=True, img_class='map')
     players = Page('Players', auto_images=True)
     npcs = Page('NPCs', auto_images=True)
-    website.pages = website.pages + [world_map, players, npcs]
+
+    links = Page('Links')
+    links.main_text += '<p><strong><u>List of Useful Links</u></strong></p><p> '
+    links.main_text += ' </p><p> '.join(['Roll20', 'Spell List', 'Quick Reference', 'Main Pyrrhos Doc', 'Wanderer\'s Wares Doc', 'List of Beasts'])
+    links.main_text += ' </p>'
+
+    website.pages = website.pages + [world_map, players, npcs, links]
 
     website.pages[3].add_wiki('https://d-n-d5e.fandom.com/wiki')
     website.pages[5].add_wiki('https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type')
