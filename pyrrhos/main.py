@@ -5,8 +5,9 @@ import json
 
 
 class Page:
-    def __init__(self, title, auto_images=False, img_class='character'):
+    def __init__(self, title, auto_images=False, img_class='character', source=''):
         self.title = title
+        self.source = source
 
         self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
@@ -26,14 +27,18 @@ class Page:
 
     def maintenance(self, external_links):
         self.main_text = self.main_text.replace('</ul>', '</ul><p><br /></p>')
+        self.main_text = self.main_text.replace('<em>', '@')
+        self.main_text = self.main_text.replace('</em>', '$')
 
         for term in self.vocab:
             term.link = f'{self.full_url}#{term.long}'
             Website.vocab.append(term)
 
         for word in external_links:
-            self.header_text = self.add_links(self.header_text, Term(word), external_links[word], False)
-            self.main_text = self.add_links(self.main_text, Term(word), external_links[word], False)
+            term = Term(word)
+            term.link = external_links[word]
+            self.add_links(term)
+            self.add_links(term)
 
     def cross_reference(self, other_page):
         if self == other_page:
@@ -47,41 +52,62 @@ class Page:
                     term_map[word2.short] = term_encoding
                     self.main_text = self.main_text.replace(word2.short, term_encoding)
 
-            self.main_text = self.add_links(self.main_text, word, other_page.full_url)
+            self.add_links(word)
 
         for term in term_map:
             self.main_text = self.main_text.replace(term_map[term], term)
 
-
     def write(self):
+        self.main_text = self.main_text.replace('@', '<em>')
+        self.main_text = self.main_text.replace('$', '</em>')
+
         src = HTML_String()
 
         # Head
         src.write(f'<title>Pyrrhos - {self.tab}</title>')
 
-        # Header
+        # Title
         src.write('</head><body><div id="rectangle"><a name="top"></a>')
-        src.write('<h1>Pyrrhos</h1><input id="searchbar" onkeyup="search()" type="text"  placeholder="Search">')
+        src.write('<h1>Pyrrhos</h1>')
+
+        # Search bar
+        src.write('<input id="searchbar" type="text" placeholder="Search" onfocus=this.value="">')
         src.write('<script src="../js/search_gen.js"></script><h2>')
 
+        # Navigation bar
         src.write_list(self.navigation_bar)
-        src.write('</h2></div><div class="main">')
+        src.write('</h2></div>')
+
+        # Header text
+        src.write('<div class="main">')
         src.write(self.header_text)
 
         # Table of Contents
         if len(self.vocab) > 0:
             src.write('<toc class="header"><strong>Contents</strong></toc><toc>')
-            if self.url == 'religion': # self.main_text.count('<ul') >= 2:
-                table_terms = [self.vocab[0]]
+            if self.url == 'religion':
+                toc_terms = [self.vocab[0]]
                 for term in re.findall("</ul>(.*?)<ul>", self.main_text.replace('\n', '')):
-                    table_terms.append(Term(re.search("<strong>(.*)</strong>", term).group(1)))
+                    toc_terms.append(Term(re.search("<strong>(.*)</strong>", term).group(1)))
             else:
-                table_terms = self.vocab
-            src.write_list([f'<li class="toc"><blockquote><a href="#{word.long}">{word.long}</a></blockquote></li>' for word in table_terms])
+                toc_terms = self.vocab
+
+            for term in toc_terms:
+                src.write('<li class="toc"><blockquote>')
+                src.write(f'<a href="#{term.long}">{term.long}</a>')
+                src.write('</blockquote></li>')
+
             src.write('</toc>')
 
         # Main text
         src.write(self.main_text)
+
+        # Footer
+        src.write('</div><ftr>')
+        src.write('<p><a href="#top">Back to top</a></p>')
+        src.write(f'<p><a href="{self.source}">Source code</a></p>')
+        src.write('</ftr>')
+
         src.finish()
 
         with open('html/' + self.full_url, 'w', encoding='UTF-8') as f:
@@ -89,51 +115,60 @@ class Page:
 
     def add_images(self, image_folder, img_class='character'):
         file_path = './images/' + image_folder
-        images = [f for f in sorted(os.listdir(file_path)) if (f.endswith('.png') or f.endswith('.jpg'))]
-        descriptions = [f for f in os.listdir(file_path) if f.endswith('.txt')]
+        files = sorted(os.listdir(file_path))
+        images = [f for f in files if (f.endswith('.png') or f.endswith('.jpg'))]
+        descriptions = [f for f in files if f.endswith('.txt')]
+
         for source in images:
-            self.main_text += f'<img class="{img_class}" src=".{file_path}/{source}" alt="picture here">'
+            self.main_text += f'<img class="{img_class}" src=".{file_path}/{source}" alt="pic">'
             desc = os.path.splitext(source)[0] + '.txt'
             if desc in descriptions:
                 with open(file_path + '/' + desc) as f:
                     self.main_text += f'<cap>{f.readlines()[0]}</cap>'
 
-    def add_links(self, string, substring, link, internal=True):
-        result = string
+    def add_links(self, term):
+        for v in [
+            term.short,
+            term.short + 's',
+            term.short + 'n',
+            term.short[:-2] + 'an',
+            term.short[:-2] + 'ans',
+            term.short + 'ish',
+            term.short[:-1] + 'ves',
+            term.short[:-1] + 'ven',
+            term.short[:-4] + 'ian',
+            term.short[:-1] + 'ish'
+        ]:
 
-        for v in [substring.short,
-                substring.short + 's',
-                substring.short + 'n',
-                substring.short[:-2] + 'an',
-                substring.short[:-2] + 'ans',
-                substring.short + 'ish',
-                substring.short[:-1] + 'ves',
-                substring.short[:-1] + 'ven',
-                substring.short[:-4] + 'ian',
-                substring.short[:-1] + 'ish']:
             for w in [v, v.lower()]:
-                for x in [' ' + w + ' ',
-                        ' ' + w + ',',
-                        ' ' + w + '.',
-                        ' ' + w + '!',
-                        ' ' + w + ')',
-                        ' ' + w + "’",
-                        ' ' + w + '?',
-                        ' ' + w + '/',
-                        '/' + w + ')',
-                        '/' + w + '/',
-                        '(' + w + '/',
-                        '(' + w + ' ',
-                        '(' + w + ',',
-                        ' ' + w + '-',
-                        '>' + w + '<',
-                        ' ' + w + '\n']:
-                    if internal:
-                        result = result.replace(x, x[0] + f'<a href="{link}#{substring.long}">{w}</a>' + x[-1])
-                    else:
-                        result = result.replace(x, x[0] + f'<a href="{link}">{w}</a>' + x[-1])
+                for x in [
+                    ' ' + w + ' ',
+                    ' ' + w + ',',
+                    ' ' + w + '.',
+                    ' ' + w + '!',
+                    ' ' + w + ')',
+                    ' ' + w + "’",
+                    ' ' + w + '?',
+                    ' ' + w + '/',
+                    '/' + w + ')',
+                    '/' + w + '/',
+                    '(' + w + '/',
+                    '(' + w + ' ',
+                    '(' + w + ',',
+                    ' ' + w + '-',
+                    '@' + w + '$',
+                    ' ' + w + '\n'
+                ]:
 
-        return result
+                    replacement = x[0] + f'<a href="{term.link}">{w}</a>' + x[-1]
+                    self.header_text = self.header_text.replace(x, replacement)
+                    self.main_text = self.main_text.replace(x, replacement)
+
+    def add_wiki(self, base_link, separator="_"):
+        for term in self.vocab:
+            link = f'{base_link}/{separator.join(remove_parens(term.long).split(" "))}'
+            replacement = term.long + f' <a href="{link}">[wiki]</a> -'
+            self.main_text = self.main_text.replace(term.long + ' -', replacement)
 
 
 class HTML_String:
@@ -145,20 +180,17 @@ class HTML_String:
     def write(self, s):
         self.raw_string += s
 
-    def write_list(self, l):
-        self.raw_string += ''.join(l)
+    def write_list(self, lst):
+        self.raw_string += ''.join(lst)
 
     def finish(self):
-        self.write('</div><ftr>')
-        self.write('<p><a href="#top">Back to top</a></p>')
-        self.write('<p><a href="https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos">Source code</a></p>')
-        self.write('</ftr>')
         self.write('</body></html>')
         self.sub_tags()
 
-    # By default, prettify starts a newline for anchors, which messes up all links
-    # To solve, links are substituted for hashes, then prettify is executed, then the hashes are substituted back into links
-    # Somehow the > character after the link is getting converted to '&gt;'
+    # By default, prettify starts a newline for all tags, which messes up links and formatting
+    # To solve, some tags are substituted for hashes, then prettify is executed
+    # And then the hashes are substituted back into tags
+    # Somehow the < and > characters are getting converted to '&gt;' and '&lt;'
     # To do: investigate this issue
 
     def sub_tags(self):
@@ -184,10 +216,11 @@ class HTML_String:
 class Website:
     vocab = []
 
-    def __init__(self, page_titles=[]):
+    def __init__(self, page_titles=[], source=''):
         self.pages, self.page_titles, self.page_index = [], page_titles, 0
+        self.source = source
         for page_title in self.page_titles:
-            self.pages.append(Page(page_title))
+            self.pages.append(Page(page_title, source=source))
 
     def read_source(self, source_file):
         with open(source_file, 'r') as f:
@@ -240,7 +273,7 @@ class Website:
             'Bard',
             'Cleric',
             'Druid',
-            'Fighter',
+            # 'Fighter',
             'Monk',
             'Paladin',
             'Ranger',
@@ -248,12 +281,12 @@ class Website:
             'Sorcerer',
             'Warlock',
             'Wizard',
-            'Artificer']:
+            'Artificer'
+        ]:
 
             external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
 
         for spell_name in [
-            # 'Guidance',
             'Detect thoughts',
             'Identify',
             'True Resurrection',
@@ -274,17 +307,15 @@ class Website:
             'mental prison',
             'disintegrate',
             'greater restoration',
-            'wish',
             'identify',
             'zephyr strike',
             'dispel magic',
             'locate object',
             'locate creature',
-            'remove curse',
-            'command'
-            ]:
-
-            external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + '-'.join(spell_name.lower().split())
+            'remove curse'
+        ]:
+            spell = '-'.join(spell_name.lower().split())
+            external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + spell
 
         for page in self.pages:
             page.maintenance(external_links)
@@ -323,14 +354,19 @@ class Website:
 
 class Term:
     def __init__(self, term):
-        self.long = self.pre_clean(term)
-        self.short = self.post_clean(self.long)
+        self.long = self.get_long(term)
+        self.short = self.get_short(self.long)
 
-    def pre_clean(self, term):
+    def get_long(self, term):
         return term.replace(' -', '').replace('<u>', '').replace('</u>', '').rstrip()
 
-    def post_clean(self, term): # add brackets
-        return remove_articles(re.sub(r"\([^()]*\)", '', term).rstrip(' ()'))
+    def get_short(self, term):
+        if term[-1] == 's': term = term[:-1]
+        return remove_articles(remove_parens(term))
+
+
+def remove_parens(term):
+    return re.sub(r"\([^()]*\)", '', term).rstrip(' ()')
 
 
 def remove_articles(term):
@@ -357,7 +393,7 @@ def download_source():
 def main():
     download_source()
 
-    website = Website (
+    website = Website(
         page_titles=[
             'Home Page',
             'A Geographical Overview of Pyrrhos',
@@ -367,7 +403,8 @@ def main():
             'Monsters',
             'Cosmology',
             'The Wanderer\'s Wares'
-        ]
+        ],
+        source='https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos'
     )
 
     website.pages[0].add_images('world', 'cover')
@@ -379,10 +416,8 @@ def main():
     npcs = Page('NPCs', auto_images=True)
     website.pages = website.pages + [world_map, players, npcs]
 
-    for term in website.pages[3].vocab:
-        website.pages[3].main_text = website.pages[3].main_text.replace(term.long + ' -', term.long + f' <a href="https://d-n-d5e.fandom.com/wiki/{"_".join(term.short.split(" "))}">[wiki]</a> -')
-    for term in website.pages[5].vocab:
-        website.pages[5].main_text = website.pages[5].main_text.replace(term.long + ' -', term.long + f' <a href="https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type/{"_".join(term.short.split(" "))}">[wiki]</a> -')
+    website.pages[3].add_wiki('https://d-n-d5e.fandom.com/wiki')
+    website.pages[5].add_wiki('https://www.5esrd.com/gamemastering/monsters-foes/monsters-by-type')
 
     website.build()
 

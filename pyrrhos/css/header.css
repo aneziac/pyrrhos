@@ -1,10 +1,11 @@
-#rectangle {
-    width: 1280px;
-    height: 115px;
-    background-color: rgb(207, 178, 81);
-    position: absolute;
-    top: 0;
-    left: 0;
+@media screen {
+    #rectangle {
+        width: 100vw;
+        background-color: rgb(207, 178, 81);
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
 }
 
 h1 {
@@ -28,9 +29,4 @@ input {
     margin-right: 20px;
     display: inline;
     margin-left: 30px;
-}
-
-u {
-    display: block;
-    margin-top: 60px;
 }
