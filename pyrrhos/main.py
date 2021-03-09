@@ -372,6 +372,7 @@ class Term:
 
     def get_short(self, term, remove_s):
         if remove_s and term[-1] == 's': term = term[:-1]
+        if 'the' in term: term = term.split(' the')[0]
         return remove_articles(remove_parens(term))
 
 
