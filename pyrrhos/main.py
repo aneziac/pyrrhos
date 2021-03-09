@@ -12,7 +12,7 @@ class Page:
         self.url = remove_articles(self.title).split()[0].lower()
         if self.url == 'geographical': self.url = 'geography'
         if self.url == 'political': self.url = 'politics'
-        if self.url == 'wanderer\'s': self.url = 'items'
+        if self.url == 'wanderer’s': self.url = 'items'
         self.full_url = self.url + '.html'
         self.tab = self.url.capitalize()
         if self.url == 'npcs': self.tab = 'NPCs'
@@ -217,7 +217,7 @@ class Website:
             self.pages.append(Page(page_title, source=source))
 
     def read_source(self, source_file):
-        with open(source_file, 'r') as f:
+        with open('src_files/' + source_file, 'r') as f:
             lines = f.readlines()
             current_page = self.pages[self.page_index]
 
@@ -237,7 +237,10 @@ class Website:
                     if current_page.url != 'home':
                         term = re.search("<strong>(.*)</strong>", line)
                         if term is not None:
-                            vocab_word = Term(term.group(1), (True if current_page.url == 'monsters' else False))
+                            remove_s = False
+                            if current_page.url == 'monsters':
+                                remove_s = True
+                            vocab_word = Term(term.group(1), remove_s)
                             current_page.main_text += f'<a name="{vocab_word.long}"></a>'
                             if vocab_word.long not in self.page_titles:
                                 current_page.vocab.append(vocab_word)
@@ -263,8 +266,10 @@ class Website:
             'Roll20': 'https://app.roll20.net/campaigns/details/8231914/pyrrhos-campaign',
             'Spell List': 'http://dnd5e.wikidot.com/spells',
             'Quick Reference': 'https://orbitalbliss.github.io/dnd5e-quickref/quickref.html',
-            'Main Pyrrhos Doc': 'https://docs.google.com/document/d/1ytATWxoHUMBGNWV_XeqcI-OS9cWWSE_pKVszt2ZTQuE/edit',
-            'Wanderer\'s Wares Doc': 'https://docs.google.com/document/d/1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec/edit',
+            'Main Pyrrhos Doc':
+                'https://docs.google.com/document/d/1ytATWxoHUMBGNWV_XeqcI-OS9cWWSE_pKVszt2ZTQuE/edit',
+            'Wanderer\'s Wares Doc':
+                'https://docs.google.com/document/d/1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec/edit',
             'List of Beasts': 'https://dnd-wiki.org/wiki/5e_Beast_List'
         }
 
@@ -382,21 +387,24 @@ def remove_articles(term):
         return term
 
 
-def download_source():
+def download_source(download_fresh=False):
     import gdown
     import pypandoc
 
     def doc_to_html(doc_id, name):
         source = 'https://docs.google.com/document/export?format=docx&id=' + doc_id
-        gdown.download(source, name + '.docx', quiet=True)
-        pypandoc.convert_file(name + '.docx', 'html', outputfile=name + '.html')
+        inputfile = 'src_files/' + name + '.docx'
+        outputfile = 'src_files/' + name + '.html'
+        gdown.download(source, inputfile, quiet=True)
+        pypandoc.convert_file(inputfile, 'html', outputfile=outputfile)
 
-    # doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
-    # doc_to_html('1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec', 'wanderer')
+    if download_fresh:
+        doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
+        doc_to_html('1chN4NrMKjeri804bMwmTY-Cn7i7RVJ7z9voxhNNwZ10', 'wanderer')
 
 
 def main():
-    download_source()
+    download_source(True)
 
     website = Website(
         page_titles=[
@@ -406,8 +414,9 @@ def main():
             'The Races of Pyrrhos',
             'Religion',
             'Monsters',
+            'Demons',
             'Cosmology',
-            'The Wanderer\'s Wares'
+            'The Wanderer’s Wares'
         ],
         source='https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos'
     )
@@ -422,7 +431,14 @@ def main():
 
     links = Page('Links')
     links.main_text += '<p><strong><u>List of Useful Links</u></strong></p><p> '
-    links.main_text += ' </p><p> '.join(['Roll20', 'Spell List', 'Quick Reference', 'Main Pyrrhos Doc', 'Wanderer\'s Wares Doc', 'List of Beasts'])
+    links.main_text += ' </p><p> '.join([
+                                    'Roll20',
+                                    'Spell List',
+                                    'Quick Reference',
+                                    'Main Pyrrhos Doc',
+                                    'Wanderer\'s Wares Doc',
+                                    'List of Beasts'
+                                ])
     links.main_text += ' </p>'
 
     website.pages = website.pages + [world_map, players, npcs, links]

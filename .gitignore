@@ -1,4 +1,3 @@
-pyrrhos.html
-wanderer.html
-*.docx
+*/src_files/*
+*/__pycache__/*
 */venv/*
