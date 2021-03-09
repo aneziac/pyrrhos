@@ -152,6 +152,7 @@ class Page:
                     ' ' + w + '-',
                     '@' + w + '$',
                     ' ' + w + '\n',
+                    ' ' + w + '’'
                 ]:
 
                     replacement = x[0] + f'<a href="{term.link}">{w}</a>' + x[-1]
@@ -433,13 +434,13 @@ def main():
     links = Page('Links')
     links.main_text += '<p><strong><u>List of Useful Links</u></strong></p><p> '
     links.main_text += ' </p><p> '.join([
-                                    'Roll20',
-                                    'Spell List',
-                                    'Quick Reference',
-                                    'Main Pyrrhos Doc',
-                                    'Wanderer\'s Wares Doc',
-                                    'List of Beasts'
-                                ])
+        'Roll20',
+        'Spell List',
+        'Quick Reference',
+        'Main Pyrrhos Doc',
+        'Wanderer\'s Wares Doc',
+        'List of Beasts'
+    ])
     links.main_text += ' </p>'
 
     website.pages = website.pages + [world_map, players, npcs, links]
