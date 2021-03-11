@@ -1,6 +1,8 @@
 from PIL import Image, ImageFilter
 import numpy as np
 from matplotlib.pyplot import imread
+import matplotlib.colors as colors
+from opensimplex import OpenSimplex
 
 
 class Texture:
@@ -81,6 +83,80 @@ class Texture:
         return Image.fromarray((texture * 255).astype('uint8'), 'RGB')
 
 
+class TerrainMap:
+    """
+    Useful resources
+    https://www.youtube.com/watch?v=eaXk97ujbPQ
+    https://medium.com/@travall/procedural-2d-island-generation-noise-functions-13976bddeaf9
+    """
+
+    def __init__(self, width, height, octaves=None, show_components=False):
+        self.width = width
+        self.height = height
+        if octaves is None:
+            self.octaves = round(np.log2(self.width))
+        else:
+            self.octaves = octaves
+
+        self.simplex = OpenSimplex(int(np.random.rand() * 1e+4))
+        if show_components: self.images = [Image.new('L', (width, height)) for _ in range(octaves)]
+        self.array = np.zeros([self.height, self.width])
+
+        divisor = 0
+        for n in range(self.octaves):
+            frequency = 2 ** n / 1e+2
+            amplitude = 1 / frequency
+            divisor += amplitude
+
+            for i in range(self.height):
+                for j in range(self.width):
+                    rand = self.simplex.noise2d(x=frequency * i, y=frequency * j)
+                    self.array[i, j] += ((rand + 1) / 2) * amplitude
+                    if show_components: self.images[n].putpixel((j, i), int(255 * ((rand + 1) / 2)))
+
+        self.array /= divisor
+
+        if show_components:
+            for x in self.images:
+                x.show()
+
+        self.apply_circular_mask()
+        self.simple_colorize()
+        self.generate_image().show()
+
+    def apply_circular_mask(self, mask_weight=0.6, show_mask=True):
+        # mask = np.outer(np.hanning(self.height), np.hanning(self.width))
+        mask = np.outer(create_gradient(self.width, True), create_gradient(self.height, True))
+
+        if show_mask:
+            mask_img = Image.fromarray((mask * 255).astype('uint8'), 'L')
+            mask_img.show()
+
+        # self.array = self.array * (1 - mask_weight) + mask * mask_weight
+        self.array *= mask
+        self.array /= np.max(self.array)
+
+    def generate_image(self):
+        return Image.fromarray((self.array * 255).astype('uint8'), 'L')
+
+    def simple_colorize(self):
+        colorized = Image.new('RGB', (self.width, self.height))
+        mapping = {
+            0.1: (0, 0, 255),
+            0.3: (0, 0, 200),
+            0.4: (242, 235, 172),
+            0.6: (50, 200, 0),
+            1.0: 0x888c8d
+        }
+        for i in range(self.height):
+            for j in range(self.width):
+                for m in mapping:
+                    if self.array[i, j] <= m:
+                        colorized.putpixel((j, i), mapping[m])
+                        break
+        colorized.show()
+
+
 class Continent:
     def __init__(self, name, path, coordinates):
         self.name = name
@@ -90,9 +166,7 @@ class Continent:
 
     def create_mask(self, edge_size=20):
         mask = np.ones([self.image.height, self.image.width])
-        gradient = np.zeros([edge_size])
-        for i in range(edge_size):
-            gradient[i] += i / edge_size
+        gradient = create_gradient(edge_size)
 
         for i in range(self.image.height):
             mask[i, :edge_size] *= gradient
@@ -112,6 +186,17 @@ class World:
 
     def small(self):
         return self.image.resize((800, int(800 * 9 / 16)))
+
+
+def create_gradient(size, two_dir=False):
+    gradient = np.zeros([size])
+    if two_dir:
+        size = size // 2
+    for i in range(size):
+        gradient[i] = i / size
+        if two_dir:
+            gradient[-i - 1] = i / size
+    return gradient
 
 
 def main():
@@ -145,7 +230,9 @@ def main():
         location = (cont.coordinates[0] + offset_x, cont.coordinates[1] + offset_y)
         world.image.paste(cont.image, location, mask=cont.mask)
 
-    world.image.show()
+    noise = TerrainMap(200, 200)
+
+    # world.image.show()
     # world.small().save('images/map/world_map.png')
 
 
