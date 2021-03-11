@@ -83,7 +83,7 @@ class Texture:
         return Image.fromarray((texture * 255).astype('uint8'), 'RGB')
 
 
-class TerrainMap:
+class NoiseMap:
     """
     Useful resources
     https://www.youtube.com/watch?v=eaXk97ujbPQ
@@ -93,16 +93,23 @@ class TerrainMap:
     def __init__(self, width, height, octaves=None, show_components=False):
         self.width = width
         self.height = height
+
         if octaves is None:
-            self.octaves = round(np.log2(self.width))
+            self.octaves = int(np.log2(self.width))
         else:
             self.octaves = octaves
 
-        self.simplex = OpenSimplex(int(np.random.rand() * 1e+4))
-        if show_components: self.images = [Image.new('L', (width, height)) for _ in range(octaves)]
-        self.array = np.zeros([self.height, self.width])
+        self.show_components = show_components
+        if self.show_components:
+            self.images = [Image.new('L', (width, height)) for _ in range(octaves)]
 
+        self.generate_noise_map()
+
+    def generate_noise_map(self):
+        simplex = OpenSimplex(int(np.random.rand() * 1e+5))
+        self.map = np.zeros([self.height, self.width])
         divisor = 0
+
         for n in range(self.octaves):
             frequency = 2 ** n / 1e+2
             amplitude = 1 / frequency
@@ -110,51 +117,61 @@ class TerrainMap:
 
             for i in range(self.height):
                 for j in range(self.width):
-                    rand = self.simplex.noise2d(x=frequency * i, y=frequency * j)
-                    self.array[i, j] += ((rand + 1) / 2) * amplitude
-                    if show_components: self.images[n].putpixel((j, i), int(255 * ((rand + 1) / 2)))
+                    rand = simplex.noise2d(x=frequency * i, y=frequency * j)
+                    self.map[i, j] += ((rand + 1) / 2) * amplitude
+                    if self.show_components:
+                        self.images[n].putpixel((j, i), int(255 * ((rand + 1) / 2)))
 
-        self.array /= divisor
-
-        if show_components:
+        if self.show_components:
             for x in self.images:
                 x.show()
+            quit()
 
-        self.apply_circular_mask()
-        self.simple_colorize()
-        self.generate_image().show()
+        self.map /= divisor
 
-    def apply_circular_mask(self, mask_weight=0.6, show_mask=True):
-        # mask = np.outer(np.hanning(self.height), np.hanning(self.width))
-        mask = np.outer(create_gradient(self.width, True), create_gradient(self.height, True))
+    def apply_mask(self, mask, weight, operation='add'):
+        multiplier = (1 if operation == 'add' else -1)
+        self.map = self.map * (1 - weight) + mask.map * weight * multiplier
+        self.map /= np.max(self.map)
+
+    def apply_circular_mask(self, mask_weight=None, show_mask=False, n=1.25):
+        interpolation = lambda x: x ** n
+        mask = np.outer(
+            create_gradient(
+                self.height,
+                f=interpolation,
+                two_dir=True
+            ),
+            create_gradient(
+                self.width,
+                f=interpolation,
+                two_dir=True
+            )
+        )
 
         if show_mask:
-            mask_img = Image.fromarray((mask * 255).astype('uint8'), 'L')
-            mask_img.show()
+            mask_image = Image.fromarray((mask * 255).astype('uint8'), 'L')
+            mask_image.show()
 
-        # self.array = self.array * (1 - mask_weight) + mask * mask_weight
-        self.array *= mask
-        self.array /= np.max(self.array)
+        if mask_weight is None:
+            self.map *= mask
+        else:
+            self.map = self.map * (1 - mask_weight) + mask * mask_weight
+
+        self.map /= np.max(self.map)
 
     def generate_image(self):
-        return Image.fromarray((self.array * 255).astype('uint8'), 'L')
+        return Image.fromarray((self.map * 255).astype('uint8'), 'L')
 
-    def simple_colorize(self):
+    def simple_colorize(self, mapping):
         colorized = Image.new('RGB', (self.width, self.height))
-        mapping = {
-            0.1: (0, 0, 255),
-            0.3: (0, 0, 200),
-            0.4: (242, 235, 172),
-            0.6: (50, 200, 0),
-            1.0: 0x888c8d
-        }
         for i in range(self.height):
             for j in range(self.width):
                 for m in mapping:
-                    if self.array[i, j] <= m:
+                    if self.map[i, j] <= m:
                         colorized.putpixel((j, i), mapping[m])
                         break
-        colorized.show()
+        return colorized
 
 
 class Continent:
@@ -188,14 +205,17 @@ class World:
         return self.image.resize((800, int(800 * 9 / 16)))
 
 
-def create_gradient(size, two_dir=False):
+def create_gradient(size, f=lambda x: x, two_dir=False):
+    """
+    f : [0, 1] -> [0, 1]
+    """
     gradient = np.zeros([size])
     if two_dir:
         size = size // 2
     for i in range(size):
-        gradient[i] = i / size
+        gradient[i] = f(i / size)
         if two_dir:
-            gradient[-i - 1] = i / size
+            gradient[-i - 1] = f(i / size)
     return gradient
 
 
@@ -230,7 +250,24 @@ def main():
         location = (cont.coordinates[0] + offset_x, cont.coordinates[1] + offset_y)
         world.image.paste(cont.image, location, mask=cont.mask)
 
-    noise = TerrainMap(200, 200)
+    terrain = NoiseMap(200, 200)
+    moisture = NoiseMap(200, 200)
+
+    terrain.apply_circular_mask()
+    moisture.apply_circular_mask()
+
+    terrain.apply_mask(moisture, 0.4, 'subtract')
+    island = terrain.simple_colorize(
+        {
+            0.05: (19, 90, 212),  # ocean
+            0.1: 0xf1da7a,  # coast
+            0.25: 0x02ccfe,  # sand
+            0.6: 0x0add08,  # grass
+            0.9: 0x516572,  # rock
+            1.0: (255, 255, 255)  # snow
+        }
+    )
+    island.show()
 
     # world.image.show()
     # world.small().save('images/map/world_map.png')
