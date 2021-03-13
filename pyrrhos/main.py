@@ -318,7 +318,9 @@ class Website:
             'dispel magic',
             'locate object',
             'locate creature',
-            'remove curse'
+            'remove curse',
+            'produce flame',
+            'create bonfire'
         ]:
             spell = '-'.join(spell_name.lower().split())
             external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + spell
