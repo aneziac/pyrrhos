@@ -88,11 +88,12 @@ class NoiseMap:
     Useful resources
     https://www.youtube.com/watch?v=eaXk97ujbPQ
     https://medium.com/@travall/procedural-2d-island-generation-noise-functions-13976bddeaf9
+    https://www.redblobgames.com/maps/terrain-from-noise/
     """
 
-    def __init__(self, width, height, octaves=None, show_components=False):
-        self.width = width
-        self.height = height
+    def __init__(self, dimensions, flatness=1, octaves=None, show_components=False):
+        self.width = dimensions[0]
+        self.height = dimensions[1]
 
         if octaves is None:
             self.octaves = int(np.log2(self.width))
@@ -101,16 +102,16 @@ class NoiseMap:
 
         self.show_components = show_components
         if self.show_components:
-            self.images = [Image.new('L', (width, height)) for _ in range(octaves)]
+            self.images = [Image.new('L', (width, height)) for _ in range(self.octaves)]
 
-        self.generate_noise_map()
+        self.generate_noise_map(flatness)
 
-    def generate_noise_map(self):
-        simplex = OpenSimplex(int(np.random.rand() * 1e+5))
+    def generate_noise_map(self, flatness):
         self.map = np.zeros([self.height, self.width])
         divisor = 0
 
         for n in range(self.octaves):
+            simplex = OpenSimplex(int(np.random.rand() * 1e+5))
             frequency = 2 ** n / 1e+2
             amplitude = 1 / frequency
             divisor += amplitude
@@ -128,13 +129,14 @@ class NoiseMap:
             quit()
 
         self.map /= divisor
+        self.map = self.map ** flatness
+        self.normalize()
 
-    def apply_mask(self, mask, weight, operation='add'):
-        multiplier = (1 if operation == 'add' else -1)
-        self.map = self.map * (1 - weight) + mask.map * weight * multiplier
-        self.map /= np.max(self.map)
+    def apply_mask(self, mask, weight):
+        self.map = self.map * (1 - weight) + mask * weight
+        self.normalize()
 
-    def apply_circular_mask(self, mask_weight=None, show_mask=False, n=1.25):
+    def apply_circular_mask(self, weight, n=1.25):
         interpolation = lambda x: x ** n
         mask = np.outer(
             create_gradient(
@@ -149,16 +151,7 @@ class NoiseMap:
             )
         )
 
-        if show_mask:
-            mask_image = Image.fromarray((mask * 255).astype('uint8'), 'L')
-            mask_image.show()
-
-        if mask_weight is None:
-            self.map *= mask
-        else:
-            self.map = self.map * (1 - mask_weight) + mask * mask_weight
-
-        self.map /= np.max(self.map)
+        self.apply_mask(mask, weight)
 
     def generate_image(self):
         return Image.fromarray((self.map * 255).astype('uint8'), 'L')
@@ -172,6 +165,10 @@ class NoiseMap:
                         colorized.putpixel((j, i), mapping[m])
                         break
         return colorized
+
+    def normalize(self):
+        self.map -= np.min(self.map)
+        self.map /= np.max(self.map)
 
 
 class Continent:
@@ -219,7 +216,7 @@ def create_gradient(size, f=lambda x: x, two_dir=False):
     return gradient
 
 
-def main():
+def stitch_world_map():
     world = World(2000)
 
     ocean = Texture('./images/samples/ocean.png')
@@ -250,27 +247,40 @@ def main():
         location = (cont.coordinates[0] + offset_x, cont.coordinates[1] + offset_y)
         world.image.paste(cont.image, location, mask=cont.mask)
 
-    terrain = NoiseMap(200, 200)
-    moisture = NoiseMap(200, 200)
+    world.image.show()
+    # world.small().save('images/map/world_map.png')
 
-    terrain.apply_circular_mask()
-    moisture.apply_circular_mask()
 
-    terrain.apply_mask(moisture, 0.4, 'subtract')
+def generate_island():
+    terrain = NoiseMap((200, 200), flatness=0.5)
+    moisture = NoiseMap((200, 200))
+    shape = NoiseMap((200, 200))
+
+    shape.apply_circular_mask(0.75)
+    shape.map = (shape.map > 0.3).astype(int)  # convert into boolean array
+
+    terrain.apply_circular_mask(0.4)
+    terrain.apply_mask(moisture.map, 0.3)
+    terrain.map *= shape.map
+
     island = terrain.simple_colorize(
         {
-            0.05: (19, 90, 212),  # ocean
-            0.1: 0xf1da7a,  # coast
-            0.25: 0x02ccfe,  # sand
+            0.3: (19, 90, 212),  # ocean
+            0.4: 0x02ccfe,  # desert
+            0.5: (207, 140, 54),  # hills
             0.6: 0x0add08,  # grass
-            0.9: 0x516572,  # rock
+            0.8: 0x228b22,  # forest
+            0.9: 0x516572,  # stone
             1.0: (255, 255, 255)  # snow
         }
     )
     island.show()
 
-    # world.image.show()
-    # world.small().save('images/map/world_map.png')
+
+def main():
+    generate_island()
+    # stitch_world_map()
 
 
-main()
+if __name__ == '__main__':
+    main()
