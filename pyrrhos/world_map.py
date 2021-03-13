@@ -1,7 +1,6 @@
-from PIL import Image, ImageFilter
+from PIL import Image
 import numpy as np
 from matplotlib.pyplot import imread
-import matplotlib.colors as colors
 from opensimplex import OpenSimplex
 
 
@@ -18,10 +17,9 @@ class Texture:
         blocks = []
         for i in range(0, self.original.shape[0] - self.block_size, self.block_size // inc_factor):
             for j in range(0, self.original.shape[1] - self.block_size, self.block_size // inc_factor):
-                blocks.append(self.original[
-                    i:i + self.block_size,
-                    j:j + self.block_size
-                ].astype(np.float64))
+                blocks.append(
+                    self.original[i : i + self.block_size, j : j + self.block_size].astype(np.float64)
+                )
         return blocks
 
     def create(self, block_num, overlap_factor):
@@ -36,10 +34,12 @@ class Texture:
             for x in range(len(incs)):
                 if end[x] - start[x] != incs[x]:
                     raise ValueError("Dissimilar shapes: ", incs, end, start)
-            adj_window = window[start[0]:end[0], start[1]:end[1], None]
-            adj_block = block[start[0]:end[0], start[1]:end[1]]
-            img[coords[0]:coords[0] + incs[0], coords[1]:coords[1] + incs[1]] += adj_window * adj_block
-            divisor[coords[0]:coords[0] + incs[0], coords[1]:coords[1] + incs[1]] += adj_window
+            adj_window = window[start[0] : end[0], start[1] : end[1], None]
+            adj_block = block[start[0] : end[0], start[1] : end[1]]
+            img[coords[0] : coords[0] + incs[0], coords[1] : coords[1] + incs[1]] += (
+                adj_window * adj_block
+            )
+            divisor[coords[0] : coords[0] + incs[0], coords[1] : coords[1] + incs[1]] += adj_window
 
         for i in range(inc // 2, img_size, inc):
             for j in range(overlap // 2, img_size, self.block_size - overlap):
@@ -49,7 +49,7 @@ class Texture:
                     gap = min(img_size - i, self.block_size), min(img_size - j, self.block_size)
                     start = [
                         i if i < img_size - self.block_size else 0,
-                        j if j < img_size - self.block_size else 0
+                        j if j < img_size - self.block_size else 0,
                     ]
                     increment = [(x if x == self.block_size else self.block_size - x) for x in gap]
 
@@ -58,20 +58,19 @@ class Texture:
                         set_pixels(
                             [0, j],
                             [self.block_size - gap[0], gap[1]],
-                            [gap[0], 0], [self.block_size, gap[1]]
+                            [gap[0], 0],
+                            [self.block_size, gap[1]],
                         )
                         set_pixels(
                             [i, 0],
                             [gap[0], self.block_size - gap[1]],
-                            [0, gap[1]], [gap[0], self.block_size]
+                            [0, gap[1]],
+                            [gap[0], self.block_size],
                         )
 
                     else:
                         set_pixels(
-                            start,
-                            increment,
-                            [x % self.block_size for x in gap],
-                            [self.block_size] * 2
+                            start, increment, [x % self.block_size for x in gap], [self.block_size] * 2
                         )
 
                 else:
@@ -102,7 +101,7 @@ class NoiseMap:
 
         self.show_components = show_components
         if self.show_components:
-            self.images = [Image.new('L', (width, height)) for _ in range(self.octaves)]
+            self.images = [Image.new('L', (self.width, self.height)) for _ in range(self.octaves)]
 
         self.generate_noise_map(flatness)
 
@@ -111,8 +110,8 @@ class NoiseMap:
         divisor = 0
 
         for n in range(self.octaves):
-            simplex = OpenSimplex(int(np.random.rand() * 1e+5))
-            frequency = 2 ** n / 1e+2
+            simplex = OpenSimplex(int(np.random.rand() * 1e5))
+            frequency = 2 ** n / 1e2
             amplitude = 1 / frequency
             divisor += amplitude
 
@@ -139,16 +138,8 @@ class NoiseMap:
     def apply_circular_mask(self, weight, n=1.25):
         interpolation = lambda x: x ** n
         mask = np.outer(
-            create_gradient(
-                self.height,
-                f=interpolation,
-                two_dir=True
-            ),
-            create_gradient(
-                self.width,
-                f=interpolation,
-                two_dir=True
-            )
+            create_gradient(self.height, f=interpolation, two_dir=True),
+            create_gradient(self.width, f=interpolation, two_dir=True),
         )
 
         self.apply_mask(mask, weight)
@@ -184,10 +175,10 @@ class Continent:
 
         for i in range(self.image.height):
             mask[i, :edge_size] *= gradient
-            mask[i, self.image.width - edge_size:] *= gradient[::-1]
+            mask[i, self.image.width - edge_size :] *= gradient[::-1]
         for i in range(self.image.width):
             mask[:edge_size, i] *= gradient
-            mask[self.image.height - edge_size:, i] *= gradient[::-1]
+            mask[self.image.height - edge_size :, i] *= gradient[::-1]
 
         self.mask = Image.fromarray((mask * 255).astype('uint8'), 'L')
 
@@ -220,26 +211,18 @@ def stitch_world_map():
     world = World(2000)
 
     ocean = Texture('./images/samples/ocean.png')
-    storm = Texture('./images/samples/storm.png')
+    # storm = Texture('./images/samples/storm.png')
 
     for i in range(0, world.width, ocean.texture.width):
         for j in range(0, world.height, ocean.texture.height):
             world.image.paste(ocean.texture, (i, j))
 
-    piskus = Continent(
-        'Piskus',
-        'images/map/piskus.png',
-        [0, 500]
-    )
+    piskus = Continent('Piskus', 'images/map/piskus.png', [0, 500])
     erebos = Continent(
-        'Erebos',
-        'images/map/erebos.png',
-        [piskus.coordinates[0] + 350, piskus.coordinates[1] - 500]
+        'Erebos', 'images/map/erebos.png', [piskus.coordinates[0] + 350, piskus.coordinates[1] - 500]
     )
     orestes = Continent(
-        'Orestes',
-        'images/map/orestes.png',
-        [erebos.coordinates[0] + 625, erebos.coordinates[1] + 250]
+        'Orestes', 'images/map/orestes.png', [erebos.coordinates[0] + 625, erebos.coordinates[1] + 250]
     )
 
     offset_x, offset_y = 50, 50
@@ -266,12 +249,12 @@ def generate_island():
     island = terrain.simple_colorize(
         {
             0.3: (19, 90, 212),  # ocean
-            0.4: 0x02ccfe,  # desert
+            0.4: 0x02CCFE,  # desert
             0.5: (207, 140, 54),  # hills
-            0.6: 0x0add08,  # grass
-            0.8: 0x228b22,  # forest
+            0.6: 0x0ADD08,  # grass
+            0.8: 0x228B22,  # forest
             0.9: 0x516572,  # stone
-            1.0: (255, 255, 255)  # snow
+            1.0: (255, 255, 255),  # snow
         }
     )
     island.show()

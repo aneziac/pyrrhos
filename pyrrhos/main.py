@@ -10,12 +10,16 @@ class Page:
         self.source = source
 
         self.url = remove_articles(self.title).split()[0].lower()
-        if self.url == 'geographical': self.url = 'geography'
-        if self.url == 'political': self.url = 'politics'
-        if self.url == 'wanderer’s': self.url = 'items'
+        if self.url == 'geographical':
+            self.url = 'geography'
+        if self.url == 'political':
+            self.url = 'politics'
+        if self.url == 'wanderer’s':
+            self.url = 'items'
         self.full_url = self.url + '.html'
         self.tab = self.url.capitalize()
-        if self.url == 'npcs': self.tab = 'NPCs'
+        if self.url == 'npcs':
+            self.tab = 'NPCs'
 
         self.navigation_bar = []
         self.vocab = []
@@ -131,7 +135,7 @@ class Page:
             term.short[:-1] + 'ves',
             term.short[:-1] + 'ven',
             term.short[:-4] + 'ian',
-            term.short[:-1] + 'ish'
+            term.short[:-1] + 'ish',
         ]:
 
             for w in [v, v.lower()]:
@@ -152,7 +156,7 @@ class Page:
                     ' ' + w + '-',
                     '@' + w + '$',
                     ' ' + w + '\n',
-                    ' ' + w + '’'
+                    ' ' + w + '’',
                 ]:
 
                     replacement = x[0] + f'<a href="{term.link}">{w}</a>' + x[-1]
@@ -169,8 +173,10 @@ class Page:
 class HTML_String:
     def __init__(self):
         self.raw_string = "<!DOCTYPE html><html><head>"
-        self.raw_string += ('<link rel="stylesheet" href="../css/header.css">'
-                            '<link rel="stylesheet" href="../css/body.css">')
+        self.raw_string += (
+            '<link rel="stylesheet" href="../css/header.css">'
+            '<link rel="stylesheet" href="../css/body.css">'
+        )
 
     def write(self, s):
         self.raw_string += s
@@ -179,7 +185,7 @@ class HTML_String:
         self.raw_string += ''.join(lst)
 
     def finish(self):
-        self.write('</body></html>')
+        self.write('</body></html>\n')
         self.sub_tags()
 
     # By default, prettify starts a newline for all tags, which messes up links and formatting
@@ -267,11 +273,11 @@ class Website:
             'Roll20': 'https://app.roll20.net/campaigns/details/8231914/pyrrhos-campaign',
             'Spell List': 'http://dnd5e.wikidot.com/spells',
             'Quick Reference': 'https://orbitalbliss.github.io/dnd5e-quickref/quickref.html',
-            'Main Pyrrhos Doc':
-                'https://docs.google.com/document/d/1ytATWxoHUMBGNWV_XeqcI-OS9cWWSE_pKVszt2ZTQuE/edit',
-            'Wanderer\'s Wares Doc':
-                'https://docs.google.com/document/d/1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec/edit',
-            'List of Beasts': 'https://dnd-wiki.org/wiki/5e_Beast_List'
+            'Main Pyrrhos Doc': 'https://docs.google.com/document/d/'
+            '1ytATWxoHUMBGNWV_XeqcI-OS9cWWSE_pKVszt2ZTQuE/edit',
+            'Wanderer\'s Wares Doc': 'https://docs.google.com/document/d/'
+            '1TIymiw1LBDr3Y7b0onjNtnRkYOa5JUWyerbfuTLKzec/edit',
+            'List of Beasts': 'https://dnd-wiki.org/wiki/5e_Beast_List',
         }
 
         for class_name in [
@@ -287,7 +293,7 @@ class Website:
             'Sorcerer',
             'Warlock',
             'Wizard',
-            'Artificer'
+            'Artificer',
         ]:
 
             external_links[class_name] = 'https://www.dndbeyond.com/classes/' + class_name.lower()
@@ -320,7 +326,7 @@ class Website:
             'locate creature',
             'remove curse',
             'produce flame',
-            'create bonfire'
+            'create bonfire',
         ]:
             spell = '-'.join(spell_name.lower().split())
             external_links[spell_name] = 'http://dnd5e.wikidot.com/spell:' + spell
@@ -374,8 +380,10 @@ class Term:
         return term.replace(' -', '').replace('<u>', '').replace('</u>', '').rstrip()
 
     def get_short(self, term, remove_s):
-        if remove_s and term[-1] == 's': term = term[:-1]
-        if 'the' in term: term = term.split(' the')[0]
+        if remove_s and term[-1] == 's':
+            term = term[:-1]
+        if 'the' in term:
+            term = term.split(' the')[0]
         return remove_articles(remove_parens(term))
 
 
@@ -397,10 +405,10 @@ def download_source(download_fresh=False):
 
     def doc_to_html(doc_id, name):
         source = 'https://docs.google.com/document/export?format=docx&id=' + doc_id
-        inputfile = 'src_files/' + name + '.docx'
-        outputfile = 'src_files/' + name + '.html'
-        gdown.download(source, inputfile, quiet=True)
-        pypandoc.convert_file(inputfile, 'html', outputfile=outputfile)
+        infile = 'src_files/' + name + '.docx'
+        outfile = 'src_files/' + name + '.html'
+        gdown.download(source, infile, quiet=True)
+        pypandoc.convert_file(infile, 'html', outputfile=outfile)
 
     if download_fresh:
         doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
@@ -408,7 +416,7 @@ def download_source(download_fresh=False):
 
 
 def main():
-    download_source(True)
+    download_source()
 
     website = Website(
         page_titles=[
@@ -420,9 +428,9 @@ def main():
             'Monsters',
             'Demons',
             'Cosmology',
-            'The Wanderer’s Wares'
+            'The Wanderer’s Wares',
         ],
-        source='https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos'
+        source='https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos',
     )
 
     website.pages[0].add_images('world', 'cover')
@@ -435,14 +443,16 @@ def main():
 
     links = Page('Links')
     links.main_text += '<p><strong><u>List of Useful Links</u></strong></p><p> '
-    links.main_text += ' </p><p> '.join([
-        'Roll20',
-        'Spell List',
-        'Quick Reference',
-        'Main Pyrrhos Doc',
-        'Wanderer\'s Wares Doc',
-        'List of Beasts'
-    ])
+    links.main_text += ' </p><p> '.join(
+        [
+            'Roll20',
+            'Spell List',
+            'Quick Reference',
+            'Main Pyrrhos Doc',
+            'Wanderer\'s Wares Doc',
+            'List of Beasts',
+        ]
+    )
     links.main_text += ' </p>'
 
     website.pages = website.pages + [world_map, players, npcs, links]
