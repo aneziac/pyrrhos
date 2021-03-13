@@ -1,80 +1,69 @@
 from PIL import Image
 import numpy as np
-from matplotlib.pyplot import imread
+import matplotlib.pyplot as plt
 from opensimplex import OpenSimplex
 
 
 class Texture:
-    def __init__(self, name, block_size=50, block_num=30):
-        self.name = name
-        self.original = imread(self.name)[:, :, :3]  # RGBA -> RGB
+    def __init__(self, path, block_size, copy_overlap=1):
+        self.name = path.split('/')[-1].replace('.png', '')
+        self.path = path
+        self.original = plt.imread(self.path)[:, :, :3]  # RGBA -> RGB
         self.block_size = block_size
-        self.blocks = self.get_blocks(1)
-        self.raw = self.create(block_num, 2)
-        self.texture = self.read(self.raw)
+        self.blocks = self._get_blocks(copy_overlap)
 
-    def get_blocks(self, inc_factor):
+    def make_composite(self, size, paste_overlap=2):
+        self.raw = self._create(size + 2, paste_overlap)[1:-1, 1:-1]
+        return self.read(self.raw)
+
+    def _get_blocks(self, overlap_factor):
         blocks = []
-        for i in range(0, self.original.shape[0] - self.block_size, self.block_size // inc_factor):
-            for j in range(0, self.original.shape[1] - self.block_size, self.block_size // inc_factor):
+        for i in range(
+            0, self.original.shape[0] - self.block_size, int(self.block_size / overlap_factor)
+        ):
+            for j in range(
+                0, self.original.shape[1] - self.block_size, int(self.block_size / overlap_factor)
+            ):
                 blocks.append(
                     self.original[i : i + self.block_size, j : j + self.block_size].astype(np.float64)
                 )
         return blocks
 
-    def create(self, block_num, overlap_factor):
-        overlap = self.block_size // overlap_factor
-        inc = self.block_size - overlap
-        img_size = block_num * inc
+    def get_samples(self, sample_count):
+        assert len(self.blocks) > sample_count
+
+        samples = []
+        temp_blocks = self.blocks
+        for i in range(sample_count):
+            block = temp_blocks.pop(int(np.random.rand() * len(temp_blocks)))
+            samples.append(self.read(block))
+        return samples
+
+    def _create(self, img_size, overlap_factor):
+        block_overlap = int(self.block_size / overlap_factor)
         img = np.zeros((img_size, img_size, 3))
         window = np.outer(np.hanning(self.block_size), np.hanning(self.block_size))
         divisor = np.zeros_like(img) + 1e-10
 
-        def set_pixels(coords, incs, start, end):
-            for x in range(len(incs)):
-                if end[x] - start[x] != incs[x]:
-                    raise ValueError("Dissimilar shapes: ", incs, end, start)
-            adj_window = window[start[0] : end[0], start[1] : end[1], None]
-            adj_block = block[start[0] : end[0], start[1] : end[1]]
+        def set_pixels(coords, incs, end):
+            adj_window = window[: end[0], : end[1], None]
+            adj_block = block[: end[0], : end[1]]
             img[coords[0] : coords[0] + incs[0], coords[1] : coords[1] + incs[1]] += (
                 adj_window * adj_block
             )
             divisor[coords[0] : coords[0] + incs[0], coords[1] : coords[1] + incs[1]] += adj_window
 
-        for i in range(inc // 2, img_size, inc):
-            for j in range(overlap // 2, img_size, self.block_size - overlap):
+        for i in range(0, img_size, block_overlap):
+            for j in range(0, img_size, block_overlap):
                 block = self.blocks[int(np.random.rand() * len(self.blocks))]
 
+                # if on the bottom or right edges of the image, block must be cropped
                 if i > img_size - self.block_size or j > img_size - self.block_size:
-                    gap = min(img_size - i, self.block_size), min(img_size - j, self.block_size)
-                    start = [
-                        i if i < img_size - self.block_size else 0,
-                        j if j < img_size - self.block_size else 0,
-                    ]
-                    increment = [(x if x == self.block_size else self.block_size - x) for x in gap]
-
-                    set_pixels([i, j], gap, [0, 0], gap)
-                    if start == [0, 0] and gap[0] != gap[1]:
-                        set_pixels(
-                            [0, j],
-                            [self.block_size - gap[0], gap[1]],
-                            [gap[0], 0],
-                            [self.block_size, gap[1]],
-                        )
-                        set_pixels(
-                            [i, 0],
-                            [gap[0], self.block_size - gap[1]],
-                            [0, gap[1]],
-                            [gap[0], self.block_size],
-                        )
-
-                    else:
-                        set_pixels(
-                            start, increment, [x % self.block_size for x in gap], [self.block_size] * 2
-                        )
+                    gap = [min(img_size - i, self.block_size), min(img_size - j, self.block_size)]
+                    set_pixels([i, j], gap, gap)
 
                 else:
-                    set_pixels([i, j], [self.block_size] * 2, [0, 0], [self.block_size] * 2)
+                    set_pixels([i, j], [self.block_size] * 2, [self.block_size] * 2)
 
         return img / divisor
 
@@ -162,25 +151,41 @@ class NoiseMap:
         self.map /= np.max(self.map)
 
 
+class GeneratedIsland:
+    def __init__(self, size, flatness=0.5):
+        self.terrain = NoiseMap(size, flatness=flatness)
+        self.moisture = NoiseMap(size)
+        self.shape = NoiseMap(size)
+
+        self.shape.apply_circular_mask(0.75)
+        self.shape.map = (self.shape.map > 0.3).astype(int)  # convert into boolean array
+
+        self.terrain.apply_circular_mask(0.4)
+        self.terrain.apply_mask(self.moisture.map, 0.3)
+        self.terrain.map *= self.shape.map
+
+    def get_pixel(self):
+        return self.terrain.simple_colorize(
+            {
+                0.3: (19, 90, 212),  # ocean
+                0.4: 0x02CCFE,  # desert
+                0.5: (207, 140, 54),  # hills
+                0.6: 0x0ADD08,  # grass
+                0.8: 0x228B22,  # forest
+                0.9: 0x516572,  # stone
+                1.0: (255, 255, 255),  # snow
+            }
+        )
+
+    def get_textured():
+        pass
+
+
 class Continent:
     def __init__(self, name, path, coordinates):
         self.name = name
         self.image = Image.open(path)
         self.coordinates = coordinates
-        self.create_mask()
-
-    def create_mask(self, edge_size=20):
-        mask = np.ones([self.image.height, self.image.width])
-        gradient = create_gradient(edge_size)
-
-        for i in range(self.image.height):
-            mask[i, :edge_size] *= gradient
-            mask[i, self.image.width - edge_size :] *= gradient[::-1]
-        for i in range(self.image.width):
-            mask[:edge_size, i] *= gradient
-            mask[self.image.height - edge_size :, i] *= gradient[::-1]
-
-        self.mask = Image.fromarray((mask * 255).astype('uint8'), 'L')
 
 
 class World:
@@ -191,6 +196,25 @@ class World:
 
     def small(self):
         return self.image.resize((800, int(800 * 9 / 16)))
+
+
+def create_mask(image, edge_size):
+    mask = np.ones([image.height, image.width])
+    gradient = create_gradient(edge_size)
+
+    for i in range(image.height):
+        mask[i, :edge_size] *= gradient
+        mask[i, image.width - edge_size :] *= gradient[::-1]
+    for i in range(image.width):
+        mask[:edge_size, i] *= gradient
+        mask[image.height - edge_size :, i] *= gradient[::-1]
+
+    return Image.fromarray((mask * 255).astype('uint8'), 'L')
+
+
+def smooth_paste(background, image, coordinates):
+    mask = create_mask(image, edge_size=image.width // 40)
+    background.paste(image, coordinates, mask=mask)
 
 
 def create_gradient(size, f=lambda x: x, two_dir=False):
@@ -210,12 +234,12 @@ def create_gradient(size, f=lambda x: x, two_dir=False):
 def stitch_world_map():
     world = World(2000)
 
-    ocean = Texture('./images/samples/ocean.png')
+    ocean_texture = Texture('./images/samples/ocean.png', 50).make_composite(300)
     # storm = Texture('./images/samples/storm.png')
 
-    for i in range(0, world.width, ocean.texture.width):
-        for j in range(0, world.height, ocean.texture.height):
-            world.image.paste(ocean.texture, (i, j))
+    for i in range(-20, world.width, ocean_texture.width - 20):
+        for j in range(-20, world.height, ocean_texture.height - 20):
+            smooth_paste(world.image, ocean_texture, (i, j))
 
     piskus = Continent('Piskus', 'images/map/piskus.png', [0, 500])
     erebos = Continent(
@@ -228,41 +252,25 @@ def stitch_world_map():
     offset_x, offset_y = 50, 50
     for cont in [piskus, erebos, orestes]:
         location = (cont.coordinates[0] + offset_x, cont.coordinates[1] + offset_y)
-        world.image.paste(cont.image, location, mask=cont.mask)
+        smooth_paste(world.image, cont.image, location)
 
     world.image.show()
     # world.small().save('images/map/world_map.png')
 
 
-def generate_island():
-    terrain = NoiseMap((200, 200), flatness=0.5)
-    moisture = NoiseMap((200, 200))
-    shape = NoiseMap((200, 200))
-
-    shape.apply_circular_mask(0.75)
-    shape.map = (shape.map > 0.3).astype(int)  # convert into boolean array
-
-    terrain.apply_circular_mask(0.4)
-    terrain.apply_mask(moisture.map, 0.3)
-    terrain.map *= shape.map
-
-    island = terrain.simple_colorize(
-        {
-            0.3: (19, 90, 212),  # ocean
-            0.4: 0x02CCFE,  # desert
-            0.5: (207, 140, 54),  # hills
-            0.6: 0x0ADD08,  # grass
-            0.8: 0x228B22,  # forest
-            0.9: 0x516572,  # stone
-            1.0: (255, 255, 255),  # snow
-        }
-    )
-    island.show()
-
-
 def main():
-    generate_island()
-    # stitch_world_map()
+    # nardone = GeneratedIsland((200, 200))
+    # nardone.get_pixel().show()
+    biomes = []
+    for biome in ['desert', 'grassland', 'snow', 'stone']:
+        biomes.append(Texture('images/samples/' + biome + '.png', 10, copy_overlap=1.5))
+    for biome in ['hilly', 'forest']:
+        biomes.append(Texture('images/samples/' + biome + '.png', 15))
+
+    # biomes[4].make_composite(500).show()
+
+    # grassland.texture.show()
+    stitch_world_map()
 
 
 if __name__ == '__main__':
