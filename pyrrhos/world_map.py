@@ -24,7 +24,7 @@ class ImageMap:
         if len(self.map.shape) == 3:
             mask = mask[:, :, None]
         result = ImageMap(self.map * (1 - weight) + mask * weight)
-        result._normalize()
+        result.normalize()
         return result
 
     def apply_circular_mask(self, weight, n=1.25):
@@ -65,7 +65,7 @@ class ImageMap:
     def resize(self, new_dims):
         return ImageMap(tf.resize(self.map, new_dims), self.mapping)
 
-    def _normalize(self):
+    def normalize(self):
         self.map -= np.min(self.map)
         self.map /= np.max(self.map)
 
@@ -79,14 +79,52 @@ class ImageMap:
                         break
         return colorized
 
-    def texturize(self):
+    def texturize(self, blend_factor=0.08):
         texturized = np.zeros([self.height, self.width, 3])
-        for m in self.mapping:
+        divisor = np.zeros_like(texturized)
+        no_blend_count = sum([int(not m.blend) for m in self.mapping])
+
+        for i, m in enumerate(self.mapping):
             mask = (m.upper_bound >= self.map).astype(int)
             mask *= (self.map >= m.lower_bound).astype(int)
+            if i >= no_blend_count and blend_factor != 0:
+
+                # generate boolean mask of edges
+
+                # special cases: firsst and last layer
+                if i < len(self.mapping):
+                    blend_mask = (m.upper_bound + blend_factor >= self.map).astype(int)
+                else:
+                    blend_mask = np.ones_like(mask)
+                if i >= no_blend_count + 1:
+                    blend_mask *= (self.map >= (m.lower_bound - blend_factor)).astype(int)
+                else:
+                    blend_mask *= (self.map >= m.lower_bound).astype(int)
+
+                blend_mask -= mask
+
+                # make mask relative to edges
+                blend_mask = blend_mask.astype(float)
+                blend_mask *= self.map
+                blend_mask[blend_mask != 0] -= (m.lower_bound + m.upper_bound) / 2
+                blend_mask = abs(blend_mask)
+
+                # normalize mask and transform 0s to 1s and 1s to 0s
+                blend_mask[blend_mask != 0] -= np.min(blend_mask[blend_mask != 0])
+                blend_mask /= np.max(blend_mask)
+                blend_mask[blend_mask != 0] -= 1
+                blend_mask *= -1
+
+                mask = mask.astype(float)
+                mask += blend_mask
+
             layer = m.texture.make_composite((self.height, self.width)).map
             texturized += layer * mask[:, :, None]
-        return ImageMap(texturized).read_rgb()
+            divisor += mask[:, :, None]
+
+        result = ImageMap(texturized)
+        result.map /= divisor
+        return result.read_rgb()
 
     def blank_like(self):
         return ImageMap(np.ones([self.height, self.width]))
@@ -195,29 +233,32 @@ class NoiseMap(ImageMap):
 
         self.map /= divisor
         self.map = self.map ** flatness
-        self._normalize()
+        self.normalize()
 
 
 class Mapping:
     biomes = None
 
-    def __init__(self, lower_bound, upper_bound, color, texture):
+    def __init__(self, lower_bound, upper_bound, color, name, blend=True):
         if not Mapping.biomes:
             Mapping.biomes = self.create_biomes()
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.name = name
+        self.blend = blend
         self.color = color if type(color) == tuple else ImageColor.getrgb(color)
         for b in Mapping.biomes:
-            if b.name == texture:
+            if b.name == name:
                 self.texture = b
                 break
 
     def create_biomes(self):
         biomes = []
-        for biome in ['desert', 'grass', 'snow', 'stone']:
+        for biome in ['desert', 'grass', 'snow', 'stone', 'coast']:
             biomes.append(Texture('images/samples/' + biome + '.png', 10, copy_overlap=1.5))
-        for biome in ['hilly', 'forest', 'ocean']:
+        for biome in ['hills', 'forest']:
             biomes.append(Texture('images/samples/' + biome + '.png', 15))
+        biomes.append(Texture('images/samples/ocean.png', 50))
         return biomes
 
 
@@ -232,7 +273,14 @@ class GeneratedIsland:
         for i in range(len(mapping)):
             m = mapping[i]
             lower_bound = 0.0 if i == 0 else mapping[i - 1][0]
-            self.terrain.mapping.append(Mapping(lower_bound, m[0], m[1], m[2]))
+            blend = False if m[2] in ['coast', 'ocean'] else True
+            self.terrain.mapping.append(Mapping(lower_bound, m[0], m[1], m[2], blend))
+
+    # def resize(self, new_dims):
+    #    result = self.terrain.resize(new_dims)
+    #    mask = ImageMap(result.map > self.terrain.mapping[0].upper_bound).resize(new_dims)
+    #    print(mask.map)
+    #    return ImageMap(result.map * (mask.map >= 1.0), self.terrain.mapping)
 
 
 class BigIsland(GeneratedIsland):
@@ -251,7 +299,7 @@ class BigIsland(GeneratedIsland):
             [
                 [0.3, '#135AD4', 'ocean'],
                 [0.4, '#F1DA7A', 'desert'],
-                [0.5, '#CF8C36', 'hilly'],
+                [0.5, '#CF8C36', 'hills'],
                 [0.6, '#0ADD08', 'grass'],
                 [0.8, '#228B22', 'forest'],
                 [0.9, '#516572', 'stone'],
@@ -333,7 +381,9 @@ def stitch_world_map():
 def main():
     island = BigIsland((200, 200))
     island.terrain.colorize().show()
-    island.terrain.resize((1000, 1000)).texturize().show()
+    scaled_island = island.terrain.resize((1000, 1000))
+    scaled_island.texturize(0).show()
+    scaled_island.texturize().show()
 
     # world = stitch_world_map()
     # world.image.show()
