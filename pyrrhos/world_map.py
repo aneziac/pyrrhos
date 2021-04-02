@@ -328,20 +328,22 @@ class SmallIsland(GeneratedIsland):
 
 
 class Continent:
-    def __init__(self, name, path, coordinates):
+    def __init__(self, name, path, coordinates, size=None):
         self.name = name
         self.image = ImageMap(path)
+        if size:
+            self.image = self.image.resize(size)
         self.coordinates = coordinates
 
 
 class World:
     def __init__(self, width):
         self.width = width
-        self.height = int(self.width * 9 / 16)
+        self.height = int(self.width / 2)
         self.image = Image.new('RGB', (self.width, self.height))
 
     def small(self):
-        return self.image.resize((800, int(800 * 9 / 16)))
+        return self.image.resize((800, int(800 * 2 / 3)))
 
     def smooth_paste(self, inimage, coordinates, edge_size=None):
         if edge_size is None:
@@ -351,7 +353,7 @@ class World:
 
 
 def stitch_world_map():
-    world = World(2000)
+    world = World(2400)
 
     ocean_texture = Texture('images/samples/ocean.png', 50).make_composite((300, 300))
     # storm = Texture('images/samples/storm.png')
@@ -367,9 +369,15 @@ def stitch_world_map():
     orestes = Continent(
         'Orestes', 'images/map/orestes.png', [erebos.coordinates[0] + 625, erebos.coordinates[1] + 250]
     )
+    kestren = Continent(
+        'Kestren',
+        'images/map/kestren.png',
+        [orestes.coordinates[0] + 900, erebos.coordinates[1] + 250],
+        (204, 300),
+    )
 
     offset_x, offset_y = 50, 50
-    for cont in [piskus, erebos, orestes]:
+    for cont in [piskus, erebos, orestes, kestren]:
         location = (cont.coordinates[0] + offset_x, cont.coordinates[1] + offset_y)
         world.smooth_paste(cont.image, location)
 
