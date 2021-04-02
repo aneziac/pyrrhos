@@ -7,7 +7,7 @@ p {
 }
 
 .main {
-    margin-top: 120px;
+    padding-top: 120px;
     font-size: 20px;
     margin-left: 80px;
     margin-right: 80px;
@@ -50,7 +50,6 @@ p {
 }
 
 .main toc {
-    list-style-type: ul;
     font-family: 'Gill Sans';
     font-size: 16px;
     text-align: center;
@@ -62,7 +61,7 @@ p {
 
 .main toc.header {
     margin-top: 50px;
-    margin-left: -150px;
+    margin-left: -100px;
     font-size: 25px;
     display: block;
 }
@@ -78,28 +77,22 @@ p {
     margin-right: 100px;
 }
 
-.main img.character {
+.main img {
     display: block;
     margin-left: auto;
     margin-right: auto;
-    max-width: 30%;
-    max-height: 30%;
+    max-width: 50%;
+    max-height: 50%;
     margin-top: 150px;
     margin-bottom: 50px;
 }
 
 .main img.map {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 150px;
-    margin-bottom: 50px;
+    max-width: 70%;
+    max-height: 70%;
 }
 
 .main img.cover {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
     max-width: 70%;
     max-height: 70%;
     margin-top: 140px;
@@ -121,6 +114,7 @@ p {
 .main li.toc {
     margin: -10px;
     text-align: left;
+    text-indent: -30px;
 }
 
 ftr {

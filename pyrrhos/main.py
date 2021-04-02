@@ -82,7 +82,7 @@ class Page:
 
         # Table of Contents
         if len(self.vocab) > 0:
-            src.write('<toc class="header"><strong>Contents</strong></toc><toc>')
+            src.write('<toc class="header"><strong>Contents</strong></toc><toc><ol>')
             if self.url == 'religion':
                 toc_terms = [self.vocab[0]]
                 for term in re.findall("</ul>(.*?)<ul>", self.main_text.replace('\n', '')):
@@ -95,7 +95,7 @@ class Page:
                 src.write(f'<a href="#{term.long}">{term.long}</a>')
                 src.write('</blockquote></li>')
 
-            src.write('</toc>')
+            src.write('</ol></toc>')
 
         # Main text
         src.write(self.main_text)
