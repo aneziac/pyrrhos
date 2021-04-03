@@ -65,7 +65,7 @@ class Page:
         src.write(f'<title>Pyrrhos - {self.tab}</title>')
 
         # Title
-        src.write('</head><body><div id="rectangle"><a name="top"></a>')
+        src.write('</head><body><div id="rectangle">')
         src.write('<h1>Pyrrhos</h1>')
 
         # Search bar
@@ -74,10 +74,10 @@ class Page:
 
         # Navigation bar
         src.write_list(self.navigation_bar)
-        src.write('</h2></div>')
+        src.write('</h2></div><div id="line"></div>')
 
         # Header text
-        src.write('<div class="main">')
+        src.write('<div class="main"><a name="top"></a>')
         src.write(self.header_text)
 
         # Table of Contents

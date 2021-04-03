@@ -2,9 +2,20 @@
     #rectangle {
         width: 100vw;
         background-color: rgb(207, 178, 81);
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
+        height: 120px;
+    }
+
+    #line {
+        width: 100vw;
+        background-color: black;
+        position: fixed;
+        background-color: black;
+        top: 120px;
+        left: 0;
+        height:3px;
     }
 }
 
@@ -17,16 +28,21 @@ h1 {
 
 h2 {
     color: rgb(134, 32, 32);
-    font-size: 21px;
+    font-size: 18px;
     text-align: center;
-    margin-left: 15px;
+    margin-left: 50px;
     word-spacing: 8px;
+    margin-bottom: 60px;
     font-family: sans-serif;
 }
 
 input {
     float: right;
-    margin-right: 20px;
+    margin-right: 40px;
     display: inline;
     margin-left: 30px;
+    width: 160px;
+    height: 20px;
+    font-size: 15px;
+    margin-bottom: 80px;
 }
