@@ -84,15 +84,19 @@ p {
     display: block;
     margin-left: auto;
     margin-right: auto;
-    max-width: 50%;
-    max-height: 50%;
+    max-width: 30%;
+    max-height: 30%;
     margin-top: 150px;
-    margin-bottom: 50px;
+    margin-bottom: 30px;
 }
 
 .main img.map {
     max-width: 70%;
     max-height: 70%;
+}
+
+.main img.map:first-child {
+    margin-top: -100px;
 }
 
 .main img.cover {

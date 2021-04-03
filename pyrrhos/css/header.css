@@ -28,11 +28,11 @@ h1 {
 
 h2 {
     color: rgb(134, 32, 32);
-    font-size: 18px;
+    font-size: calc(5px + 1vw);
     text-align: center;
     margin-left: 50px;
     word-spacing: 8px;
-    margin-bottom: 60px;
+    margin-top: 35px;
     font-family: sans-serif;
 }
 
@@ -44,5 +44,5 @@ input {
     width: 160px;
     height: 20px;
     font-size: 15px;
-    margin-bottom: 80px;
+    margin-top: 5px;
 }
