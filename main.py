@@ -404,11 +404,15 @@ def download_source(download_fresh=False):
     import pypandoc
 
     def doc_to_html(doc_id, name):
-        source = 'https://docs.google.com/document/export?format=docx&id=' + doc_id
-        infile = 'src_files/' + name + '.docx'
-        outfile = 'src_files/' + name + '.html'
-        gdown.download(source, infile, quiet=True)
-        pypandoc.convert_file(infile, 'html', outputfile=outfile)
+        url = 'https://docs.google.com/document/export?format=docx&id=' + doc_id
+        raw_doc = 'src_files/' + name + '.docx'
+        raw_html = 'src_files/' + name + '.html'
+        gdown.download(url, raw_doc, quiet=True)
+        pypandoc.convert_file(raw_doc, 'html', outputfile=raw_html)
+
+    if 'src_files' not in os.listdir('.'):
+        os.makedirs('src_files')
+        download_fresh = True
 
     if download_fresh:
         doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')

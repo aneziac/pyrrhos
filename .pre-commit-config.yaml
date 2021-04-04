@@ -23,5 +23,5 @@ repos:
   hooks:
     - id: compile-website
       name: compile-website
-      entry: bash -c 'cd pyrrhos && python main.py'
+      entry: python main.py
       language: system

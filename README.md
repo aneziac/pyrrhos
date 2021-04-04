@@ -1,8 +1,11 @@
-# aneziac.github.io
+# Pyrrhos Website
 
 [pyrrhos]: https://aneziac.github.io/pyrrhos/html/home.html
 
-This is my personal website.
-It currently justs hosts information about the DND campaign setting Pyrrhos in `./pyrrhos`.
+This is the website for the DND campaign setting Pyrrhos.
+[Link.][pyrrhos]
+Contributions are welcome.
 
-[Link to site.][pyrrhos]
+# Development Notes
+
+I have modified Beautiful Soup according to https://stackoverflow.com/questions/15509397/custom-indent-width-for-beautifulsoup-prettify so that the generated HTML uses an indent of 4 spaces instead of 1.
