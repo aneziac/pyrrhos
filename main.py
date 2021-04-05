@@ -2,6 +2,7 @@ import re
 import os
 from bs4 import BeautifulSoup as bs
 import json
+from unidecode import unidecode
 
 
 class Page:
@@ -70,7 +71,7 @@ class Page:
 
         # Search bar
         src.write('<input id="searchbar" type="text" placeholder="Search" onfocus=this.value="">')
-        src.write('<script src="../js/search_gen.js"></script><h2>')
+        src.write('<script src="../js/search.js"></script><h2>')
 
         # Navigation bar
         src.write_list(self.navigation_bar)
@@ -339,18 +340,24 @@ class Website:
                 page.add_links(term)
 
     def write_js(self):
-        with open('js/search_gen.js', 'w') as f:
-            with open('js/search_src.js', 'r') as g:
-                f.writelines(g.readlines())
-            f.write("\nvar data = [\n\t")
+        code = []
+        with open('js/search.js', 'r') as f:
+            lines = f.readlines()
+            for i, line in enumerate(lines):
+                if line == ']\n':
+                    code = lines[i + 1 :]
+                    break
+        with open('js/search.js', 'w') as f:
+            f.write("var searchTerms = [\n\t")
             for i, term in enumerate(Website.vocab):
-                f.write("'")
+                f.write("`")
                 f.write(json.dumps(term.__dict__))
                 if i < len(Website.vocab) - 1:
-                    f.write("',\n\t")
+                    f.write("`,\n\t")
                 else:
-                    f.write("'\n")
+                    f.write("`\n")
             f.write("]\n")
+            f.writelines(code)
 
     def navigation(self):
         for page1 in self.pages:
@@ -372,7 +379,6 @@ class Website:
 
 class Term:
     def __init__(self, term, remove_s=False):
-        term = term.replace('è', 'e')
         self.long = self.get_long(term)
         self.short = self.get_short(self.long, remove_s)
 
@@ -384,11 +390,11 @@ class Term:
             term = term[:-1]
         if 'the' in term:
             term = term.split(' the')[0]
-        return remove_articles(remove_parens(term))
+        return unidecode(remove_articles(remove_parens(term)))
 
 
 def remove_parens(term):
-    return re.sub(r"\([^()]*\)", '', term).rstrip(' ()')
+    return re.sub(r'\[.*?\]', '', re.sub(r'\([^()|\[\]]*\)', '', term)).rstrip()
 
 
 def remove_articles(term):
@@ -400,9 +406,6 @@ def remove_articles(term):
 
 
 def download_source(download_fresh=False):
-    import gdown
-    import pypandoc
-
     def doc_to_html(doc_id, name):
         url = 'https://docs.google.com/document/export?format=docx&id=' + doc_id
         raw_doc = 'src_files/' + name + '.docx'
@@ -415,6 +418,9 @@ def download_source(download_fresh=False):
         download_fresh = True
 
     if download_fresh:
+        import gdown
+        import pypandoc
+
         doc_to_html('10zOwNbnFIhr0NnuXhmXsRoRdr_eq7BBZ2lnI3Hb8Gw0', 'pyrrhos')
         doc_to_html('1chN4NrMKjeri804bMwmTY-Cn7i7RVJ7z9voxhNNwZ10', 'wanderer')
 
@@ -434,7 +440,7 @@ def main():
             'Cosmology',
             'The Wanderer’s Wares',
         ],
-        source='https://github.com/aneziac/aneziac.github.io/tree/master/pyrrhos',
+        source='https://github.com/aneziac/pyrrhos',
     )
 
     website.pages[0].add_images('world', 'cover')
