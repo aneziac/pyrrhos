@@ -64,18 +64,19 @@ class Page:
 
         # Head
         src.write(f'<title>Pyrrhos - {self.tab}</title>')
+        src.write('<meta charset="UTF-8">')
 
         # Title
         src.write('</head><body><div id="rectangle">')
-        src.write('<h1>Pyrrhos</h1>')
+        src.write('<img alt="pic" class="logo" src="../images/logo/pyrrhos_logo.png"/>')
 
         # Search bar
         src.write('<input id="searchbar" type="text" placeholder="Search" onfocus=this.value="">')
-        src.write('<script src="../js/search.js"></script><h2>')
+        src.write('<script src="../js/search.js"></script><h1>')
 
         # Navigation bar
         src.write_list(self.navigation_bar)
-        src.write('</h2></div><div id="line"></div>')
+        src.write('</h1></div><div id="line"></div>')
 
         # Header text
         src.write('<div class="main"><a name="top"></a>')

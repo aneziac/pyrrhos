@@ -20,19 +20,12 @@
 }
 
 h1 {
-    color: navy;
-    margin-left: 25px;
-    text-align: center;
-    font-family: sans-serif;
-}
-
-h2 {
     color: rgb(134, 32, 32);
     font-size: calc(5px + 1vw);
     text-align: center;
     margin-left: 50px;
     word-spacing: 8px;
-    margin-top: 35px;
+    margin-top: 15px;
     font-family: sans-serif;
 }
 
@@ -45,4 +38,13 @@ input {
     height: 20px;
     font-size: 15px;
     margin-top: 5px;
+}
+
+img.logo {
+    max-width: 60%;
+    max-height: 60%;
+    margin-top: 10px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
