@@ -219,7 +219,11 @@ var searchTerms = [
 	`{"long": "Sword of Judgement", "short": "Sword of Judgement", "link": "items.html#Sword of Judgement"}`,
 	`{"long": "Handkerchief of Cleanliness", "short": "Handkerchief of Cleanliness", "link": "items.html#Handkerchief of Cleanliness"}`,
 	`{"long": "Ring of Skill: Distant Strike", "short": "Ring of Skill: Distant Strike", "link": "items.html#Ring of Skill: Distant Strike"}`,
-	`{"long": "Void Link", "short": "Void Link", "link": "items.html#Void Link"}`
+	`{"long": "Void Link", "short": "Void Link", "link": "items.html#Void Link"}`,
+	`{"long": "Giant Door Shield", "short": "Giant Door Shield", "link": "items.html#Giant Door Shield"}`,
+	`{"long": "Tythalamos\u2019 Helm", "short": "Tythalamos' Helm", "link": "items.html#Tythalamos\u2019 Helm"}`,
+	`{"long": "Ring of Crisis", "short": "Ring of Crisis", "link": "items.html#Ring of Crisis"}`,
+	`{"long": "Luck\u2019s Shield", "short": "Luck's Shield", "link": "items.html#Luck\u2019s Shield"}`
 ]
 
 function search(searchInput) {

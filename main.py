@@ -427,7 +427,7 @@ def download_source(download_fresh=False):
 
 
 def main():
-    download_source()
+    download_source(True)
 
     website = Website(
         page_titles=[
